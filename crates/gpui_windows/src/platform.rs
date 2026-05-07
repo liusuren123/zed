@@ -902,9 +902,11 @@ impl WindowsPlatformInner {
                 self.close_one_window(HWND(lparam.0 as _));
                 Some(0)
             }
-            WM_GPUI_TASK_DISPATCHED_ON_MAIN_THREAD => self.run_foreground_task(),
-            WM_GPUI_DOCK_MENU_ACTION => self.handle_dock_action_event(lparam.0 as _),
-            WM_GPUI_KEYBOARD_LAYOUT_CHANGED => self.handle_keyboard_layout_change(),
+            WM_GPUI_TASK_DISPATCHED_ON_MAIN_THREAD => self.handle_foreground_task(wnd_proc_guard),
+            WM_GPUI_DOCK_MENU_ACTION => {
+                self.handle_dock_action_event(wnd_proc_guard, lparam.0 as _)
+            }
+            WM_GPUI_KEYBOARD_LAYOUT_CHANGED => self.handle_keyboard_layout_change(wnd_proc_guard),
             WM_GPUI_GPU_DEVICE_LOST => self.handle_device_lost(lparam),
             _ => unreachable!(),
         }
@@ -923,6 +925,16 @@ impl WindowsPlatformInner {
         lock.remove(index);
 
         lock.is_empty()
+    }
+
+    fn handle_foreground_task(self: &Rc<Self>, wnd_proc_guard: &WndProcGuard) -> Option<isize> {
+        wnd_proc_guard.run_at_outermost({
+            let this = self.clone();
+            move || {
+                this.run_foreground_task();
+            }
+        });
+        Some(0)
     }
 
     #[inline]
