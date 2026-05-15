@@ -90,7 +90,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Icon Themes\u{2026}", "图标主题\u{2026}");
         map.insert("Panel Layout", "面板布局");
         map.insert("Classic", "经典");
-        map.insert("Agentic", "代理");
+        map.insert("Agentic", "智能体");
         map.insert("Custom", "自定义");
         map.insert("Sign Out", "退出登录");
         map.insert("Sign In", "登录");
@@ -256,7 +256,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Theme", "主题");
         map.insert("Buffer Font", "缓冲区字体");
         map.insert("UI Font", "界面字体");
-        map.insert("Agent Panel Font", "代理面板字体");
+        map.insert("Agent Panel Font", "智能体面板字体");
         map.insert("Text Rendering", "文本渲染");
         map.insert("Cursor", "光标");
         map.insert("Highlighting", "高亮");
@@ -309,7 +309,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Pane Split Direction", "窗格拆分方向");
         map.insert("Collaboration Panel", "协作面板");
         map.insert("Git Panel", "Git 面板");
-        map.insert("Agent Panel", "代理面板");
+        map.insert("Agent Panel", "智能体面板");
         map.insert("Git Integration", "Git 集成");
         map.insert("Git Gutter", "Git 装订线");
         map.insert("Inline Git Blame", "内联 Git 追责");
@@ -317,7 +317,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Branch Picker", "分支选择器");
         map.insert("Git Hunks", "Git 变更块");
         map.insert("Calls", "通话");
-        map.insert("Agent Configuration", "代理配置");
+        map.insert("Agent Configuration", "智能体配置");
         map.insert("Context Servers", "上下文服务器");
         map.insert("Edit Predictions", "编辑预测");
         map.insert("Environment", "环境");
@@ -448,7 +448,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Breadcrumbs", "面包屑导航");
         map.insert("Quick Actions", "快捷操作");
         map.insert("Selections Menu", "选区菜单");
-        map.insert("Agent Review", "代理审查");
+        map.insert("Agent Review", "智能体审查");
         map.insert("Coloring", "着色");
         map.insert("Background Coloring", "背景着色");
         map.insert("Show", "显示");
@@ -560,7 +560,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Collaboration Panel Button", "协作面板按钮");
         map.insert("Outline Panel Button", "大纲面板按钮");
         map.insert("Git Panel Button", "Git 面板按钮");
-        map.insert("Agent Panel Button", "代理面板按钮");
+        map.insert("Agent Panel Button", "智能体面板按钮");
         map.insert("Show Branch Status Icon", "显示分支状态图标");
         map.insert("Show Branch Name", "显示分支名称");
         map.insert("Show Project Items", "显示项目条目");
@@ -638,10 +638,10 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Outline Panel Dock", "大纲面板停靠位置");
         map.insert("Outline Panel Default Width", "大纲面板默认宽度");
         map.insert("Outline Panel Button", "大纲面板按钮");
-        map.insert("Agent Panel Dock", "代理面板停靠位置");
-        map.insert("Agent Panel Default Width", "代理面板默认宽度");
-        map.insert("Agent Panel Default Height", "代理面板默认高度");
-        map.insert("Agent Panel Flexible Sizing", "代理面板弹性大小");
+        map.insert("Agent Panel Dock", "智能体面板停靠位置");
+        map.insert("Agent Panel Default Width", "智能体面板默认宽度");
+        map.insert("Agent Panel Default Height", "智能体面板默认高度");
+        map.insert("Agent Panel Flexible Sizing", "智能体面板弹性大小");
         map.insert("Terminal Dock", "终端停靠位置");
         map.insert("Terminal Panel Flexible Sizing", "终端面板弹性大小");
 
@@ -704,8 +704,8 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("New Thread Location", "新线程位置");
         map.insert("Single File Review", "单文件审查");
         map.insert("Enable Feedback", "启用反馈");
-        map.insert("Notify When Agent Waiting", "代理等待时通知");
-        map.insert("Play Sound When Agent Done", "代理完成时播放声音");
+        map.insert("Notify When Agent Waiting", "智能体等待时通知");
+        map.insert("Play Sound When Agent Done", "智能体完成时播放声音");
         map.insert("Expand Edit Card", "展开编辑卡片");
         map.insert("Expand Terminal Card", "展开终端卡片");
         map.insert("Thinking Display", "思考过程显示");
@@ -843,11 +843,11 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         );
         map.insert(
             "Font size for agent response text in the agent panel. Falls back to the regular UI font size.",
-            "代理面板中代理响应文本的字号，默认回退到界面字号。",
+            "智能体面板中智能体响应文本的字号，默认回退到界面字号。"
         );
         map.insert(
             "Font size for user messages text in the agent panel.",
-            "代理面板中用户消息文本的字号。",
+            "智能体面板中用户消息文本的字号。"
         );
         map.insert("The text rendering mode to use.", "要使用的文本渲染模式。");
         map.insert("Modifier key for adding multiple cursors.", "用于添加多个光标的修饰键。");
@@ -996,7 +996,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Display the terminal title in breadcrumbs inside the terminal pane.", "在终端窗格的面包屑中显示终端标题。");
         map.insert("Show quick action buttons (e.g., search, selection, editor controls, etc.).", "显示快捷操作按钮（如搜索、选区、编辑器控件等）。");
         map.insert("Show the selections menu in the editor toolbar.", "在编辑器工具栏中显示选区菜单。");
-        map.insert("Show agent review buttons in the editor toolbar.", "在编辑器工具栏中显示代理审查按钮。");
+        map.insert("Show agent review buttons in the editor toolbar.", "在编辑器工具栏中显示智能体审查按钮。");
         map.insert("Show code action buttons in the editor toolbar.", "在编辑器工具栏中显示代码操作按钮。");
         map.insert("Highlight all occurrences of selected text.", "高亮选中文本的所有出现位置。");
         map.insert("How to highlight the current line.", "当前行的高亮方式。");
@@ -1165,8 +1165,8 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Show the collaboration panel button in the status bar.", "在状态栏中显示协作面板按钮。");
         map.insert("Show the Git panel button in the status bar.", "在状态栏中显示 Git 面板按钮。");
         map.insert("Show the outline panel button in the status bar.", "在状态栏中显示大纲面板按钮。");
-        map.insert("Whether to show the agent panel button in the status bar.", "是否在状态栏中显示代理面板按钮。");
-        map.insert("Show the agent panel button in the status bar.", "在状态栏中显示代理面板按钮。");
+        map.insert("Whether to show the agent panel button in the status bar.", "是否在状态栏中显示智能体面板按钮。");
+        map.insert("Show the agent panel button in the status bar.", "在状态栏中显示智能体面板按钮。");
         map.insert("Show git status indicators on the branch icon in the titlebar.", "在标题栏的分支图标上显示 Git 状态指示器。");
         map.insert("Show the branch name button in the titlebar.", "在标题栏中显示分支名称按钮。");
         map.insert("Show the project host and name in the titlebar.", "在标题栏中显示项目主机和名称。");
@@ -1202,7 +1202,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Left padding for centered layout.", "居中布局的左侧填充。");
         map.insert("Right padding for centered layout.", "居中布局的右侧填充。");
         map.insert("Maximum content width in pixels. Content will be centered when the panel is wider than this value.", "内容的最大宽度（像素）。当面板宽于此值时内容将居中。");
-        map.insert("Whether to constrain the agent panel content to a maximum width, centering it when the panel is wider, for optimal readability.", "是否将代理面板内容限制在最大宽度内，宽于时居中显示以提升可读性。");
+        map.insert("Whether to constrain the agent panel content to a maximum width, centering it when the panel is wider, for optimal readability.", "是否将智能体面板内容限制在最大宽度内，宽于时居中显示以提升可读性。");
         map.insert("What to do after closing the current tab.", "关闭当前标签后的行为。");
         map.insert("Where to dock the project panel.", "项目面板的停靠位置。");
         map.insert("Default width of the project panel in pixels.", "项目面板的默认宽度（像素）。");
@@ -1248,10 +1248,10 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Show the Git status in the outline panel.", "在大纲面板中显示 Git 状态。");
         map.insert("Whether to show folder icons or chevrons for directories in the outline panel.", "是否在大纲面板中显示目录的文件夹图标或箭头。");
         map.insert("Whether to reveal when a corresponding outline entry becomes active.", "当相应大纲条目变为活动状态时是否自动展示。");
-        map.insert("Where to dock the agent panel.", "代理面板的停靠位置。");
-        map.insert("Default width when the agent panel is docked to the left or right.", "代理面板停靠在左侧或右侧时的默认宽度。");
-        map.insert("Default height when the agent panel is docked to the bottom.", "代理面板停靠在底部时的默认高度。");
-        map.insert("Whether the agent panel should use flexible (proportional) sizing when docked to the left or right.", "代理面板停靠在左侧或右侧时是否使用弹性（比例）大小。");
+        map.insert("Where to dock the agent panel.", "智能体面板的停靠位置。");
+        map.insert("Default width when the agent panel is docked to the left or right.", "智能体面板停靠在左侧或右侧时的默认宽度。");
+        map.insert("Default height when the agent panel is docked to the bottom.", "智能体面板停靠在底部时的默认高度。");
+        map.insert("Whether the agent panel should use flexible (proportional) sizing when docked to the left or right.", "智能体面板停靠在左侧或右侧时是否使用弹性（比例）大小。");
         map.insert("Where to dock the terminal panel.", "终端面板的停靠位置。");
         map.insert("Whether the terminal panel should use flexible (proportional) sizing when docked to the left or right.", "终端面板停靠在左侧或右侧时是否使用弹性（比例）大小。");
         map.insert("Determines the stepping granularity for debug operations.", "决定调试操作的单步粒度。");
@@ -1314,18 +1314,18 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Which side of the window the threads sidebar appears on.", "线程侧边栏出现在窗口的哪一侧。");
         map.insert("Set up regex patterns to auto-allow, auto-deny, or always request confirmation, for specific tool inputs.", "为特定工具输入设置正则模式，以自动允许、自动拒绝或始终请求确认。");
         map.insert("Whether to start a new thread in the current local project or in a new Git worktree.", "是否在当前本地项目或新的 Git 工作树中开始新线程。");
-        map.insert("When enabled, agent edits will also be displayed in single-file buffers for review.", "启用后，代理编辑也将在单文件缓冲区中显示以供审查。");
-        map.insert("Show voting thumbs up/down icon buttons for feedback on agent edits.", "显示对代理编辑进行反馈的点赞/踩图标按钮。");
-        map.insert("Where to show notifications when the agent has completed its response or needs confirmation before running a tool action.", "当代理完成响应或在执行工具操作前需要确认时，显示通知的位置。");
-        map.insert("When to play a sound when the agent has either completed its response, or needs user input.", "当代理完成响应或需要用户输入时，何时播放声音。");
-        map.insert("Whether to have edit cards in the agent panel expanded, showing a Preview of the diff.", "是否在代理面板中展开编辑卡片，显示差异预览。");
-        map.insert("Whether to have terminal cards in the agent panel expanded, showing the whole command output.", "是否在代理面板中展开终端卡片，显示完整命令输出。");
+        map.insert("When enabled, agent edits will also be displayed in single-file buffers for review.", "启用后，智能体编辑也将在单文件缓冲区中显示以供审查。");
+        map.insert("Show voting thumbs up/down icon buttons for feedback on agent edits.", "显示对智能体编辑进行反馈的点赞/踩图标按钮。");
+        map.insert("Where to show notifications when the agent has completed its response or needs confirmation before running a tool action.", "当智能体完成响应或在执行工具操作前需要确认时，显示通知的位置。");
+        map.insert("When to play a sound when the agent has either completed its response, or needs user input.", "当智能体完成响应或需要用户输入时，何时播放声音。");
+        map.insert("Whether to have edit cards in the agent panel expanded, showing a Preview of the diff.", "是否在智能体面板中展开编辑卡片，显示差异预览。");
+        map.insert("Whether to have terminal cards in the agent panel expanded, showing the whole command output.", "是否在智能体面板中展开终端卡片，显示完整命令输出。");
         map.insert("How 'thinking blocks' should be displayed by default. 'Auto' fully expands during streaming, then auto-collapses when done. 'Preview' auto-expands with a height constraint during streaming. 'Always Expanded' shows full content. 'Always Collapsed' keeps them collapsed.", "\u{601d}\u{8003}\u{5757}\u{201d}\u{7684}\u{9ed8}\u{8ba4}\u{663e}\u{793a}\u{65b9}\u{5f0f}\u{3002}\u{81ea}\u{52a8}\u{ff1a}\u{6d41}\u{5f0f}\u{4f20}\u{8f93}\u{65f6}\u{5c55}\u{5f00}\u{ff0c}\u{5b8c}\u{6210}\u{540e}\u{81ea}\u{52a8}\u{6298}\u{53e0}\u{3002}\u{9884}\u{89c8}\u{ff1a}\u{5e26}\u{9ad8}\u{5ea6}\u{9650}\u{5236}\u{81ea}\u{52a8}\u{5c55}\u{5f00}\u{3002}\u{59cb}\u{7ec8}\u{5c55}\u{5f00}\u{ff1a}\u{663e}\u{793a}\u{5168}\u{90e8}\u{5185}\u{5bb9}\u{3002}\u{59cb}\u{7ec8}\u{6298}\u{53e0}\u{ff1a}\u{4fdd}\u{6301}\u{6298}\u{53e0}\u{3002}");
         map.insert("Whether clicking the stop button on a running terminal tool should also cancel the agent's generation. Note that this only applies to the stop button, not to ctrl+c inside the terminal.", "\u{70b9}\u{51fb}\u{8fd0}\u{884c}\u{4e2d}\u{7ec8}\u{7aef}\u{5de5}\u{5177}\u{7684}\u{505c}\u{6b62}\u{6309}\u{9215}\u{662f}\u{5426}\u{4e5f}\u{5e94}\u{53d6}\u{6d88}\u{4ee3}\u{7406}\u{7684}\u{751f}\u{6210}\u{3002}\u{6ce8}\u{610f}\u{ff0c}\u{8fd9}\u{4ec5}\u{9002}\u{7528}\u{4e8e}\u{505c}\u{6b62}\u{6309}\u{9215}\u{ff0c}\u{800c}\u{975e}\u{7ec8}\u{7aef}\u{5185}\u{7684} Ctrl+C\u{3002}");
         map.insert("Whether to always use cmd-enter (or ctrl-enter on Linux or Windows) to send messages.", "\u{662f}\u{5426}\u{59cb}\u{7ec8}\u{4f7f}\u{7528} Cmd+Enter\u{ff08}Linux/Windows \u{4e0a}\u{4e3a} Ctrl+Enter\u{ff09}\u{53d1}\u{9001}\u{6d88}\u{606f}\u{3002}");
-        map.insert("Minimum number of lines to display in the agent message editor.", "代理消息编辑器中显示的最小行数。");
+        map.insert("Minimum number of lines to display in the agent message editor.", "智能体消息编辑器中显示的最小行数。");
         map.insert("Whether to show turn statistics like elapsed time during generation and final turn duration.", "是否显示轮次统计信息，如生成期间的耗时和最终轮次时长。");
-        map.insert("Whether to show the merge conflict indicator in the status bar that offers to resolve conflicts using the agent.", "是否在状态栏中显示合并冲突指示器，提供使用代理解决冲突的选项。");
+        map.insert("Whether to show the merge conflict indicator in the status bar that offers to resolve conflicts using the agent.", "是否在状态栏中显示合并冲突指示器，提供使用智能体解决冲突的选项。");
         map.insert("Default timeout in seconds for context server tool calls. Can be overridden per-server in context_servers configuration.", "上下文服务器工具调用的默认超时时间（秒），可在 context_servers 配置中按服务器覆盖。");
         map.insert("Set up different edit prediction providers in complement to Zed's built-in Zeta model.", "设置不同的编辑预测提供商，以补充 Zed 内置的 Zeta 模型。");
         map.insert("Controls whether Zed may collect training data when using Zed's Edit Predictions. Data is only collected for files in projects detected as open source. The default value uses the preference previously set via the status-bar toggle, or false if no preference has been stored.", "控制 Zed 是否可在使用编辑预测时收集训练数据。仅对检测为开源项目的文件收集数据。");
@@ -1358,7 +1358,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Grammars", "语法");
         map.insert("Language Servers", "语言服务器");
         map.insert("MCP Servers", "MCP 服务器");
-        map.insert("Agent Servers", "代理服务器");
+        map.insert("Agent Servers", "智能体服务器");
         map.insert("Snippets", "代码片段");
         map.insert("Debug Adapters", "调试适配器");
         map.insert("Slash Commands", "斜杠命令");
@@ -1394,7 +1394,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Open Permalink", "打开永久链接");
         map.insert("Copy SHA", "复制 SHA");
         map.insert("Use Both", "同时使用");
-        map.insert("Resolve with Agent", "使用代理解决");
+        map.insert("Resolve with Agent", "使用智能体解决");
         map.insert("Stash Pop", "弹出暂存");
         map.insert("View Stash", "查看暂存");
         map.insert("Open Diff", "打开差异");
@@ -1438,9 +1438,11 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Collapse All", "全部折叠");
 
         // ════════════════════════════════════════════════════════════════════
-        // 十、代理面板（Agent UI）
+        // 十、智能体面板（Agent UI）
         // ════════════════════════════════════════════════════════════════════
-        map.insert("Message the Zed Agent — @ to include context", "向 Zed 代理发送消息 — 使用 @ 引入上下文");
+        map.insert("Message the Zed Agent — @ to include context", "向 Zed 智能体发送消息 — 使用 @ 引入上下文");
+        map.insert("Message {name} — @ to include context", "向 {name} 发送消息 — 使用 @ 引入上下文");
+        map.insert("Message {name} — @ to include context, / for commands", "向 {name} 发送消息 — 使用 @ 引入上下文，/ 查看命令");
         map.insert("Search all threads...", "搜索所有线程\u{2026}");
         map.insert("New Thread\u{2026}", "新建线程\u{2026}");
         map.insert("Loading\u{2026}", "加载中\u{2026}");
@@ -1455,7 +1457,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Remove Model", "删除模型");
         map.insert("Save Provider", "保存提供商");
         map.insert("Select a model\u{2026}", "选择模型\u{2026}");
-        map.insert("Search agents...", "搜索代理...");
+        map.insert("Search agents...", "搜索智能体...");
         map.insert("Search profiles\u{2026}", "搜索配置文件\u{2026}");
         map.insert("Configure", "配置");
         map.insert("Custom Profiles", "自定义配置文件");
@@ -1475,7 +1477,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Add Provider", "添加提供商");
         map.insert("Compatible APIs", "兼容的 API");
         map.insert("LLM Providers", "LLM 提供商");
-        map.insert("Add at least one provider to use AI-powered features with Zed's native agent.", "至少添加一个提供商以使用 Zed 原生代理的 AI 功能。");
+        map.insert("Add at least one provider to use AI-powered features with Zed's native agent.", "至少添加一个提供商以使用 Zed 原生智能体的 AI 功能。");
         map.insert("Add Server", "添加服务器");
         map.insert("Add Custom Server", "添加自定义服务器");
         map.insert("Install from Extensions", "从扩展安装");
@@ -1488,16 +1490,16 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Log Out", "登出");
         map.insert("Authenticate to connect this server", "认证以连接此服务器");
         map.insert("Authenticating…", "认证中…");
-        map.insert("External Agents", "外部代理");
-        map.insert("All agents connected through the Agent Client Protocol.", "通过 Agent Client Protocol 连接的所有代理。");
-        map.insert("Add Agent", "添加代理");
+        map.insert("External Agents", "外部智能体");
+        map.insert("All agents connected through the Agent Client Protocol.", "通过 Agent Client Protocol 连接的所有智能体。");
+        map.insert("Add Agent", "添加智能体");
         map.insert("Install from Registry", "从注册表安装");
-        map.insert("Add Custom Agent", "添加自定义代理");
+        map.insert("Add Custom Agent", "添加自定义智能体");
         map.insert("ACP Docs", "ACP 文档");
-        map.insert("Restart Agent Connection", "重新连接代理");
-        map.insert("Uninstall Agent Extension", "卸载代理扩展");
-        map.insert("Remove Registry Agent", "移除注册表代理");
-        map.insert("Remove Custom Agent", "移除自定义代理");
+        map.insert("Restart Agent Connection", "重新连接智能体");
+        map.insert("Uninstall Agent Extension", "卸载智能体扩展");
+        map.insert("Remove Registry Agent", "移除注册表智能体");
+        map.insert("Remove Custom Agent", "移除自定义智能体");
 
         // ── 工具权限设置 ──────────────────────────────────────────────────
         map.insert("Commands executed in the terminal", "在终端中执行的命令");
@@ -1567,6 +1569,18 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Error: ", "错误：");
         map.insert("Invalid regex: ", "无效的正则表达式：");
         map.insert(". Pattern saved but will block this tool until fixed or removed.", "。模式已保存，但在修复或移除之前将阻止此工具。");
+
+        // ── 其他遗漏翻译 ──────────────────────────────────────────────────
+        map.insert("Zed Agent", "Zed 智能体");
+        map.insert("Add More Agents", "添加更多智能体");
+        map.insert("Toggle GPUI Inspector", "切换 GPUI 检查器");
+        map.insert("Open Local Folders", "打开本地文件夹");
+        map.insert("Open Remote Folder", "打开远程文件夹");
+        map.insert("Search projects…", "搜索项目…");
+        map.insert("Recently opened projects will show up here", "最近打开的项目将在此处显示");
+        map.insert("Get help to write anything.", "获取编写任何内容的帮助。");
+        map.insert("Chat about your codebase.", "讨论您的代码库。");
+        map.insert("Chat about anything with no tools.", "无工具限制的自由对话。");
 
         // ════════════════════════════════════════════════════════════════════
         // 十一、搜索面板
@@ -1710,6 +1724,255 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("Errors", "错误");
         map.insert("Warnings", "警告");
 
+        // ════════════════════════════════════════════════════════════════════
+        // 十八、第二次补齐——最后一批遗漏翻译
+        // ════════════════════════════════════════════════════════════════════
+        map.insert("Add Folder to Project\u{2026}", "将文件夹添加到项目\u{2026}");
+        map.insert("Add Keybinding\u{2026}", "添加键位绑定\u{2026}");
+        map.insert("Attach", "附加");
+        map.insert("Attach the debugger to a running process", "将调试器附加到正在运行的进程");
+        map.insert("Buffer Search", "缓冲区搜索");
+        map.insert("Click to Resolve with Agent", "点击以使用智能体解决");
+        map.insert("Commit SHA", "提交 SHA");
+        map.insert("Continue Program", "继续程序");
+        map.insert("Debug", "调试");
+        map.insert("Detach", "分离");
+        map.insert("Do you want to install the recommended", "是否要安装推荐的");
+        map.insert("Dock", "停靠");
+        map.insert("Edit settings.json", "编辑 settings.json");
+        map.insert("Follow", "跟随");
+        map.insert("Found", "已找到");
+        map.insert("Grant Mic Access", "授予麦克风访问权限");
+
+        map.insert("Launch", "启动");
+        map.insert("Launch a new process with a debugger", "使用调试器启动新进程");
+        map.insert("Max Completion Tokens", "最大补全令牌数");
+        map.insert("Max Output Tokens", "最大输出令牌数");
+        map.insert("Max Tokens", "最大令牌数");
+        map.insert("Microphone will be unmuted", "麦克风将取消静音");
+        map.insert("Model Name", "模型名称");
+        map.insert("New Terminal", "新终端");
+        map.insert("Open\u{2026}", "打开\u{2026}");
+        map.insert("Pause Program", "暂停程序");
+        map.insert("Rerun Session", "重新运行会话");
+        map.insert("Resolve Merge Conflict with Agent", "使用智能体解决合并冲突");
+        map.insert("Resolve Merge Conflicts with Agent", "使用智能体解决合并冲突");
+        map.insert("Room ID copied to clipboard", "房间 ID 已复制到剪贴板");
+        map.insert("Run predefined task", "运行预定义任务");
+        map.insert("Select the process you want to attach the debugger to", "选择要附加调试器的进程");
+        map.insert("Start a predefined debug scenario", "启动预定义调试方案");
+        map.insert("Step In", "单步步入");
+        map.insert("Terminate All Threads", "终止所有线程");
+        map.insert("Terminate Thread", "终止线程");
+        map.insert("Unknown Session", "未知会话");
+        map.insert("Use", "使用");
+        map.insert("View on", "在\u{2026}上查看");
+        map.insert("across the codebase", "在整个代码库中");
+        map.insert("conflict", "个冲突");
+        map.insert("conflicts", "个冲突");
+        map.insert("extension for", "的扩展");
+        map.insert("files?", "文件？");
+        map.insert("untitled", "未命名");
+
+        // ── strum 枚举变体标签（CliDefaultOpenBehavior）──────────────────
+        map.insert("Add to Existing Window", "添加到现有窗口");
+        map.insert("Open a New Window", "打开新窗口");
+        // ── strum 枚举变体标签（RestoreOnStartupBehavior）───────────────
+        map.insert("EmptyTab", "空白标签页");
+        map.insert("LastWorkspace", "上次工作区");
+        map.insert("LastSession", "上次会话");
+        map.insert("Launchpad", "启动面板");
+
+        // ── 智能体线程默认标题 ──────────────────────────────────────────
+        map.insert("New Agent Thread", "新建智能体线程");
+
+        // ── strum 枚举变体标签（自动生成）─────────────────────────────
+        map.insert("ActiveEditor", "活动编辑器");
+        map.insert("AfterDelay", "延迟后");
+        map.insert("AllEditors", "所有编辑器");
+        map.insert("AllScreens", "所有屏幕");
+        map.insert("Alt", "Alt");
+        map.insert("Always", "始终");
+        map.insert("AlwaysCollapsed", "始终折叠");
+        map.insert("AlwaysExpanded", "始终展开");
+        map.insert("AlwaysHome", "始终主目录");
+        map.insert("Anywhere", "任意位置");
+        map.insert("Atom", "Atom");
+        map.insert("Auto", "自动");
+        map.insert("Bar", "竖线");
+        map.insert("Binary", "二进制");
+        map.insert("Block", "方块");
+        map.insert("Boundary", "边界");
+        map.insert("Bounded", "受限");
+        map.insert("Center", "居中");
+        map.insert("Chinese Simplified", "中文简体");
+        map.insert("Client", "客户端");
+        map.insert("CloseWindow", "关闭窗口");
+        map.insert("CmdOrCtrl", "Cmd 或 Ctrl");
+        map.insert("CodeGemma", "CodeGemma");
+        map.insert("CodeLlama", "CodeLlama");
+        map.insert("Codestral", "Codestral");
+        map.insert("Combined", "合并");
+        map.insert("Comfortable", "舒适");
+        map.insert("Contained", "包含");
+        map.insert("CurrentFileDirectory", "当前文件目录");
+        map.insert("CurrentProjectDirectory", "当前项目目录");
+        map.insert("Dark", "深色");
+        map.insert("Decimal", "十进制");
+        map.insert("DeepseekCoder", "DeepseekCoder");
+        map.insert("Default", "默认");
+        map.insert("Detect", "自动检测");
+        map.insert("DirectoriesFirst", "目录优先");
+        map.insert("Disabled", "已禁用");
+        map.insert("Down", "向下");
+        map.insert("Dynamic", "动态");
+        map.insert("Eager", "急切");
+        map.insert("EditorWidth", "编辑器宽度");
+        map.insert("Emacs", "Emacs");
+        map.insert("Enforce CRLF", "强制 CRLF");
+        map.insert("Enforce LF", "强制 LF");
+        map.insert("English", "English");
+        map.insert("Error", "错误");
+        map.insert("Fallback", "回退");
+        map.insert("FileNameFirst", "文件名优先");
+        map.insert("FilePathFirst", "文件路径优先");
+        map.insert("FilesFirst", "文件优先");
+        map.insert("FindAllReferences", "查找所有引用");
+        map.insert("FirstProjectDirectory", "第一个项目目录");
+        map.insert("Fixed", "固定");
+        map.insert("Full", "完整");
+        map.insert("Glm", "Glm");
+        map.insert("Grayscale", "灰度");
+        map.insert("Hide", "隐藏");
+        map.insert("Hint", "提示");
+        map.insert("History", "历史记录");
+        map.insert("Hollow", "空心");
+        map.insert("Hover", "悬停");
+        map.insert("Icon", "图标");
+        map.insert("InComments", "注释中");
+        map.insert("InSelections", "选区中");
+        map.insert("IndentAware", "缩进感知");
+        map.insert("Indexed", "已索引");
+        map.insert("Infer", "Infer");
+        map.insert("Info", "信息");
+        map.insert("Information", "信息");
+        map.insert("Inherit", "继承");
+        map.insert("Inline", "内联");
+        map.insert("Insert", "插入");
+        map.insert("Instruction", "指令");
+        map.insert("JetBrains", "JetBrains");
+        map.insert("KeepWindowOpen", "保持窗口打开");
+        map.insert("LabelColor", "标签颜色");
+        map.insert("Large", "大");
+        map.insert("LeftAligned", "左对齐");
+        map.insert("LeftNeighbour", "左侧邻居");
+        map.insert("LeftOnly", "仅左侧");
+        map.insert("LeftOpen", "左侧开口");
+        map.insert("Light", "浅色");
+        map.insert("Lower", "小写");
+        map.insert("Medium", "中");
+        map.insert("Menu", "菜单");
+        map.insert("Minimum", "最小");
+        map.insert("Mixed", "混合");
+        map.insert("Neighbour", "邻居");
+        map.insert("Never", "从不");
+        map.insert("No", "否");
+        map.insert("NonUtf8", "非 UTF-8");
+        map.insert("None", "无");
+        map.insert("Normal", "普通");
+        map.insert("Off", "关闭");
+        map.insert("On", "开启");
+        map.insert("OnFocusChange", "焦点变化时");
+        map.insert("OnTyping", "输入时");
+        map.insert("OnTypingAndAction", "输入和操作时");
+        map.insert("OnWindowChange", "窗口变化时");
+        map.insert("OnYank", "复制时");
+        map.insert("OnePage", "一页");
+        map.insert("PlatformDefault", "平台默认");
+        map.insert("Prefer CRLF", "优先 CRLF");
+        map.insert("Prefer LF", "优先 LF");
+        map.insert("PreferLine", "优先行长");
+        map.insert("Preserve", "保持");
+        map.insert("PreserveIndent", "保持缩进");
+        map.insert("Preview", "预览");
+        map.insert("PrimaryScreen", "主屏幕");
+        map.insert("QuitApp", "退出应用");
+        map.insert("Qwen", "Qwen");
+        map.insert("ReplaceSubsequence", "替换子序列");
+        map.insert("ReplaceSuffix", "替换后缀");
+        map.insert("RightAligned", "右对齐");
+        map.insert("RightOpen", "右侧开口");
+        map.insert("Select", "选择");
+        map.insert("Server", "服务器");
+        map.insert("Small", "小");
+        map.insert("Smart", "智能");
+        map.insert("Split", "拆分");
+        map.insert("StagedHollow", "已暂存空心");
+        map.insert("Standard", "标准");
+        map.insert("StarCoder", "StarCoder");
+        map.insert("Statement", "语句");
+        map.insert("Static", "静态");
+        map.insert("Sublime Text", "Sublime Text");
+        map.insert("Subpixel", "亚像素");
+        map.insert("Subtle", "微妙");
+        map.insert("SyntaxAware", "语法感知");
+        map.insert("System", "系统");
+        map.insert("TerminalControlled", "终端控制");
+        map.insert("TextMate", "TextMate");
+        map.insert("Top", "顶部");
+        map.insert("TrackedFiles", "已跟踪文件");
+        map.insert("Trailing", "尾部");
+        map.insert("Underline", "下划线");
+        map.insert("Unicode", "Unicode");
+        map.insert("Unified", "统一");
+        map.insert("UnstagedHollow", "未暂存空心");
+        map.insert("Up", "向上");
+        map.insert("Upper", "大写");
+        map.insert("VSCode", "VSCode");
+        map.insert("VerticalScrollMargin", "垂直滚动边距");
+        map.insert("Warning", "警告");
+        map.insert("WhenHidden", "隐藏时");
+        map.insert("WithArguments", "带参数");
+        map.insert("Wrapped", "换行");
+        map.insert("XLarge", "超大");
+        map.insert("Yes", "是");
+        map.insert("Zeta", "Zeta");
+        map.insert("Zeta2", "Zeta2");
+        map.insert("Zeta2_1", "Zeta2_1");
+
+        // ── 第三批补齐 ────────────────────────────────────────────────
+        map.insert("(child)", "(子级)");
+        map.insert("Are you sure you want to discard changes to", "确定要放弃更改吗？");
+        map.insert("Click to Follow", "点击以跟随");
+        map.insert("Discard Changes", "放弃更改");
+        map.insert("Discard Tracked Changes", "放弃已跟踪更改");
+        map.insert("Disconnected from SSH host", "已断开 SSH 主机连接");
+        map.insert("Disconnected from remote project", "已断开远程项目连接");
+        map.insert("Editor Layout", "编辑器布局");
+        map.insert("Flat View", "平铺视图");
+        map.insert("Hide Others", "隐藏其他");
+        map.insert("Hide Zed", "隐藏 Zed");
+        map.insert("Install CLI", "安装 CLI");
+        map.insert("Mic only", "仅麦克风");
+        map.insert("New Profile", "新建配置文件");
+        map.insert("New\u{2026}", "新建\u{2026}");
+        map.insert("Save As\u{2026}", "另存为\u{2026}");
+        map.insert("Screen", "屏幕");
+        map.insert("Search channels\u{2026}", "搜索频道\u{2026}");
+        map.insert("Select Debugger", "选择调试器");
+        map.insert("Show All", "显示全部");
+        map.insert("Show in Git Graph", "在 Git 图中显示");
+        map.insert("Sort by Path", "按路径排序");
+        map.insert("Sort by Status", "按状态排序");
+        map.insert("Split Pane", "拆分窗格");
+        map.insert("Stash All", "暂存全部");
+        map.insert("This Debug Session is still running. Are you sure you want to terminate it?", "此调试会话仍在运行。确定要终止吗？");
+        map.insert("This cannot be undone.", "此操作不可撤销。");
+        map.insert("This provider will use an OpenAI compatible API.", "此提供商将使用 OpenAI 兼容的 API。");
+        map.insert("Trash Untracked Files", "删除未跟踪文件");
+        map.insert("Unstage All", "取消暂存全部");
+        map.insert("Zed", "Zed");
+        map.insert("Zed \u{2014} Settings", "Zed \u{2014} 设置");
         map
     })
 }
