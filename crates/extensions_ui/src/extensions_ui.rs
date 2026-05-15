@@ -23,6 +23,7 @@ use project::DirectoryLister;
 use release_channel::ReleaseChannel;
 use settings::{Settings, SettingsContent};
 use strum::IntoEnumIterator as _;
+use theme::translate;
 use theme_settings::ThemeSettings;
 use ui::{
     Banner, Chip, ContextMenu, Divider, PopoverMenu, ScrollableHandle, Switch, ToggleButtonGroup,
@@ -363,7 +364,8 @@ impl ExtensionsPage {
 
             let query_editor = cx.new(|cx| {
                 let mut input = Editor::single_line(window, cx);
-                input.set_placeholder_text("Search extensions...", window, cx);
+                let placeholder = translate("Search extensions...", cx);
+                input.set_placeholder_text(&placeholder, window, cx);
                 if let Some(id) = focus_extension_id {
                     input.set_text(format!("id:{id}"), window, cx);
                 }
@@ -666,9 +668,9 @@ impl ExtensionsPage {
                             .justify_between()
                             .child(
                                 Button::new(
-                                    SharedString::from(format!("rebuild-{}", extension.id)),
-                                    "Rebuild",
-                                )
+                                                    SharedString::from(format!("rebuild-{}", extension.id)),
+                                                    translate("Rebuild", cx),
+                                                )
                                 .color(Color::Accent)
                                 .disabled(matches!(status, ExtensionStatus::Upgrading))
                                 .on_click({
@@ -681,9 +683,9 @@ impl ExtensionsPage {
                                 }),
                             )
                             .child(
-                                Button::new(extension_button_id(&extension.id, ExtensionOperation::Remove), "Uninstall")
-                                    .color(Color::Accent)
-                                    .disabled(matches!(status, ExtensionStatus::Removing))
+                                Button::new(extension_button_id(&extension.id, ExtensionOperation::Remove), translate("Uninstall", cx))
+                                                                    .color(Color::Accent)
+                                                                    .disabled(matches!(status, ExtensionStatus::Removing))
                                     .on_click({
                                         let extension_id = extension.id.clone();
                                         move |_, _, cx| {
@@ -1087,7 +1089,7 @@ impl ExtensionsPage {
             ExtensionStatus::Upgrading => ExtensionCardButtons {
                 install_or_uninstall: Button::new(
                     extension_button_id(&extension.id, ExtensionOperation::Remove),
-                    "Uninstall",
+                    translate("Uninstall", cx),
                 )
                 .style(ButtonStyle::OutlinedGhost)
                 .disabled(true),
@@ -1109,7 +1111,7 @@ impl ExtensionsPage {
             ExtensionStatus::Installed(installed_version) => ExtensionCardButtons {
                 install_or_uninstall: Button::new(
                     extension_button_id(&extension.id, ExtensionOperation::Remove),
-                    "Uninstall",
+                    translate("Uninstall", cx),
                 )
                 .style(ButtonStyle::OutlinedGhost)
                 .on_click({
@@ -1190,7 +1192,7 @@ impl ExtensionsPage {
             ExtensionStatus::Removing => ExtensionCardButtons {
                 install_or_uninstall: Button::new(
                     extension_button_id(&extension.id, ExtensionOperation::Remove),
-                    "Uninstall",
+                    translate("Uninstall", cx),
                 )
                 .style(ButtonStyle::OutlinedGhost)
                 .disabled(true),
@@ -1725,12 +1727,15 @@ impl Render for ExtensionsPage {
                             .justify_between()
                             .child(Headline::new("Extensions").size(HeadlineSize::Large))
                             .child(
-                                Button::new("install-dev-extension", "Install Dev Extension")
-                                    .style(ButtonStyle::Outlined)
-                                    .size(ButtonSize::Medium)
-                                    .on_click(|_event, window, cx| {
-                                        window.dispatch_action(Box::new(InstallDevExtension), cx)
-                                    }),
+                                Button::new(
+                                    "install-dev-extension",
+                                    translate("Install Dev Extension", cx),
+                                )
+                                .style(ButtonStyle::Outlined)
+                                .size(ButtonSize::Medium)
+                                .on_click(|_event, window, cx| {
+                                    window.dispatch_action(Box::new(InstallDevExtension), cx)
+                                }),
                             ),
                     )
                     .child(
@@ -1745,25 +1750,25 @@ impl Render for ExtensionsPage {
                                         "filter-buttons",
                                         [
                                             ToggleButtonSimple::new(
-                                                "All",
-                                                cx.listener(|this, _event, _, cx| {
-                                                    this.filter = ExtensionFilter::All;
+                                                translate("All", cx),
+                                                                                            cx.listener(|this, _event, _, cx| {
+                                                                                                this.filter = ExtensionFilter::All;
                                                     this.filter_extension_entries(cx);
                                                     this.scroll_to_top(cx);
                                                 }),
                                             ),
                                             ToggleButtonSimple::new(
-                                                "Installed",
-                                                cx.listener(|this, _event, _, cx| {
-                                                    this.filter = ExtensionFilter::Installed;
+                                                                                            translate("Installed", cx),
+                                                                                            cx.listener(|this, _event, _, cx| {
+                                                                                                this.filter = ExtensionFilter::Installed;
                                                     this.filter_extension_entries(cx);
                                                     this.scroll_to_top(cx);
                                                 }),
                                             ),
                                             ToggleButtonSimple::new(
-                                                "Not Installed",
-                                                cx.listener(|this, _event, _, cx| {
-                                                    this.filter = ExtensionFilter::NotInstalled;
+                                                                                            translate("Not Installed", cx),
+                                                                                            cx.listener(|this, _event, _, cx| {
+                                                                                                this.filter = ExtensionFilter::NotInstalled;
                                                     this.filter_extension_entries(cx);
                                                     this.scroll_to_top(cx);
                                                 }),
@@ -1794,7 +1799,7 @@ impl Render for ExtensionsPage {
                     .border_color(cx.theme().colors().border_variant)
                     .overflow_x_scroll()
                     .child(
-                        Button::new("filter-all-categories", "All")
+                        Button::new("filter-all-categories", translate("All", cx))
                             .when(self.provides_filter.is_none(), |button| {
                                 button.style(ButtonStyle::Filled)
                             })

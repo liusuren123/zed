@@ -33,6 +33,7 @@ use settings::Settings;
 use smallvec::SmallVec;
 use std::{mem, sync::Arc, time::Duration};
 use theme::ActiveTheme;
+use theme::translate;
 use theme_settings::ThemeSettings;
 use ui::{
     Avatar, AvatarAvailabilityIndicator, CollabNotification, ContextMenu, CopyButton, Facepile,
@@ -157,7 +158,7 @@ pub fn init(cx: &mut App) {
                         workspace.show_toast(
                             workspace::Toast::new(
                                 NotificationId::unique::<RoomIdCopiedToast>(),
-                                "Room ID copied to clipboard",
+                                translate("Room ID copied to clipboard", cx).to_string(),
                             )
                             .autohide(),
                             cx,
@@ -348,7 +349,7 @@ impl CollabPanel {
         cx.new(|cx| {
             let filter_editor = cx.new(|cx| {
                 let mut editor = Editor::single_line(window, cx);
-                editor.set_placeholder_text("Search channels…", window, cx);
+                editor.set_placeholder_text(&translate("Search channels…", cx), window, cx);
                 editor
             });
 
@@ -1131,24 +1132,28 @@ impl CollabPanel {
             .current_user()
             .map(|user| user.legacy_id)
             == Some(user_id);
-        let tooltip = format!("Follow {}", user.github_login);
+        let tooltip = format!("{} {}", translate("Follow", cx), user.github_login);
 
         let is_call_admin = ActiveCall::global(cx).read(cx).room().is_some_and(|room| {
             room.read(cx).local_participant().role == proto::ChannelRole::Admin
         });
 
         let end_slot = if is_pending {
-            Label::new("Calling").color(Color::Muted).into_any_element()
+            Label::new(translate("Calling", cx))
+                .color(Color::Muted)
+                .into_any_element()
         } else if is_current_user {
             IconButton::new("leave-call", IconName::Exit)
                 .icon_size(IconSize::Small)
-                .tooltip(Tooltip::text("Leave Call"))
+                .tooltip(Tooltip::text(translate("Leave Call", cx)))
                 .on_click(move |_, window, cx| Self::leave_call(window, cx))
                 .into_any_element()
         } else if role == proto::ChannelRole::Guest {
-            Label::new("Guest").color(Color::Muted).into_any_element()
+            Label::new(translate("Guest", cx))
+                .color(Color::Muted)
+                .into_any_element()
         } else if role == proto::ChannelRole::Talker {
-            Label::new("Mic only")
+            Label::new(translate("Mic only", cx))
                 .color(Color::Muted)
                 .into_any_element()
         } else {
@@ -1160,7 +1165,7 @@ impl CollabPanel {
             .child(render_participant_name_and_handle(user))
             .toggle_state(is_selected)
             .end_slot(end_slot)
-            .tooltip(Tooltip::text("Click to Follow"))
+            .tooltip(Tooltip::text(translate("Click to Follow", cx)))
             .when_some(peer_id, |el, peer_id| {
                 if role == proto::ChannelRole::Guest {
                     return el;
@@ -1198,7 +1203,7 @@ impl CollabPanel {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let project_name: SharedString = if worktree_root_names.is_empty() {
-            "untitled".to_string()
+            translate("untitled", cx).to_string()
         } else {
             worktree_root_names.join(", ")
         }
@@ -1258,7 +1263,7 @@ impl CollabPanel {
                             .color(Color::Muted),
                     ),
             )
-            .child(Label::new("Screen"))
+            .child(Label::new(translate("Screen", cx)))
             .when_some(peer_id, |this, _| {
                 this.on_click(cx.listener(move |this, _, window, cx| {
                     this.workspace
@@ -1267,7 +1272,7 @@ impl CollabPanel {
                         })
                         .ok();
                 }))
-                .tooltip(Tooltip::text("Open Shared Screen"))
+                .tooltip(Tooltip::text(translate("Open Shared Screen", cx)))
             })
     }
 
@@ -1321,8 +1326,8 @@ impl CollabPanel {
                             }),
                     ),
             )
-            .child(Label::new("notes"))
-            .tooltip(Tooltip::text("Open Channel Notes"))
+            .child(Label::new(translate("notes", cx)))
+            .tooltip(Tooltip::text(translate("Open Channel Notes", cx)))
     }
 
     fn has_subchannels(&self, ix: usize) -> bool {
@@ -1351,10 +1356,10 @@ impl CollabPanel {
             return;
         }
 
-        let context_menu = ContextMenu::build(window, cx, |mut context_menu, window, _| {
+        let context_menu = ContextMenu::build(window, cx, |mut context_menu, window, cx| {
             if role == proto::ChannelRole::Guest {
                 context_menu = context_menu.entry(
-                    "Grant Mic Access",
+                    translate("Grant Mic Access", cx),
                     None,
                     window.handler_for(&this, move |_, window, cx| {
                         ActiveCall::global(cx)

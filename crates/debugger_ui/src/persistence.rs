@@ -67,8 +67,8 @@ impl DebuggerPaneItem {
             DebuggerPaneItem::MemoryView => SharedString::new_static("Memory View"),
         }
     }
-    pub(crate) fn tab_tooltip(self) -> SharedString {
-        let tooltip = match self {
+    pub(crate) fn tab_tooltip(self) -> &'static str {
+        match self {
             DebuggerPaneItem::Console => {
                 "Displays program output and allows manual input of debugger commands."
             }
@@ -87,8 +87,7 @@ impl DebuggerPaneItem {
                 "Provides an interactive terminal session within the debugging environment."
             }
             DebuggerPaneItem::MemoryView => "Allows inspection of memory contents.",
-        };
-        SharedString::new_static(tooltip)
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use editor::Editor;
-use gpui::{AnyElement, ElementId, Focusable, TextStyleRefinement};
+use gpui::{AnyElement, ElementId, Focusable, SharedString, TextStyleRefinement};
 use settings::Settings as _;
 use theme_settings::ThemeSettings;
 use ui::{Tooltip, prelude::*, rems};
@@ -10,7 +10,7 @@ use ui::{Tooltip, prelude::*, rems};
 pub struct SettingsInputField {
     id: Option<ElementId>,
     initial_text: Option<String>,
-    placeholder: Option<&'static str>,
+    placeholder: Option<SharedString>,
     confirm: Option<Rc<dyn Fn(Option<String>, &mut Window, &mut App)>>,
     tab_index: Option<isize>,
     use_buffer_font: bool,
@@ -48,8 +48,8 @@ impl SettingsInputField {
         self
     }
 
-    pub fn with_placeholder(mut self, placeholder: &'static str) -> Self {
-        self.placeholder = Some(placeholder);
+    pub fn with_placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
+        self.placeholder = Some(placeholder.into());
         self
     }
 
@@ -140,7 +140,7 @@ impl RenderOnce for SettingsInputField {
                         .detach();
                     }
 
-                    if let Some(placeholder) = placeholder {
+                    if let Some(placeholder) = placeholder.as_ref() {
                         editor.set_placeholder_text(placeholder, window, cx);
                     }
                     editor.set_text_style_refinement(styles);
@@ -176,7 +176,7 @@ impl RenderOnce for SettingsInputField {
                         .detach();
                     }
 
-                    if let Some(placeholder) = placeholder {
+                    if let Some(placeholder) = placeholder.as_ref() {
                         editor.set_placeholder_text(placeholder, window, cx);
                     }
                     editor.set_text_style_refinement(styles);

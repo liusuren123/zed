@@ -11,6 +11,7 @@ use gpui::{
 use markdown::{Markdown, MarkdownElement};
 use project::{git_store::Repository, project_settings::ProjectSettings};
 use settings::Settings as _;
+use theme::translate;
 use theme_settings::ThemeSettings;
 use time::OffsetDateTime;
 use ui::{ContextMenu, CopyButton, Divider, prelude::*, tooltip_container};
@@ -361,7 +362,7 @@ impl BlameRenderer for GitBlameRenderer {
                                             .child(Divider::vertical())
                                             .child(
                                                 CopyButton::new("copy-blame-sha", sha.to_string())
-                                                    .tooltip_label("Copy SHA"),
+                                                    .tooltip_label(translate("Copy SHA", cx)),
                                             ),
                                     ),
                             ),
@@ -399,16 +400,16 @@ fn deploy_blame_entry_context_menu(
     window: &mut Window,
     cx: &mut App,
 ) {
-    let context_menu = ContextMenu::build(window, cx, move |menu, _, _| {
+    let context_menu = ContextMenu::build(window, cx, move |menu, _, cx| {
         let sha = format!("{}", blame_entry.sha);
         menu.on_blur_subscription(Subscription::new(|| {}))
-            .entry("Copy Commit SHA", None, move |_, cx| {
+            .entry(translate("Copy Commit SHA", cx), None, move |_, cx| {
                 cx.write_to_clipboard(ClipboardItem::new_string(sha.clone()));
             })
             .when_some(
                 details.and_then(|details| details.permalink.clone()),
                 |this, url| {
-                    this.entry("Open Permalink", None, move |_, cx| {
+                    this.entry(translate("Open Permalink", cx), None, move |_, cx| {
                         cx.open_url(url.as_str())
                     })
                 },

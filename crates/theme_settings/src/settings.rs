@@ -13,11 +13,18 @@ use serde::{Deserialize, Serialize};
 pub use settings::{FontFamilyName, IconThemeName, ThemeAppearanceMode, ThemeName};
 use settings::{IntoGpui, RegisterSetting, Settings, SettingsContent};
 use std::sync::Arc;
-use theme::{Appearance, DEFAULT_ICON_THEME_NAME, SyntaxTheme, Theme, UiDensity};
+use theme::{Appearance, DEFAULT_ICON_THEME_NAME, SyntaxTheme, Theme, UiDensity, UiLanguage};
 
 const MIN_FONT_SIZE: Pixels = px(6.0);
 const MAX_FONT_SIZE: Pixels = px(100.0);
 const MIN_LINE_HEIGHT: f32 = 1.0;
+
+pub(crate) fn ui_language_from_settings(val: settings::UiLanguage) -> UiLanguage {
+    match val {
+        settings::UiLanguage::English => UiLanguage::English,
+        settings::UiLanguage::ChineseSimplified => UiLanguage::ChineseSimplified,
+    }
+}
 
 pub(crate) fn ui_density_from_settings(val: settings::UiDensity) -> UiDensity {
     match val {
@@ -83,6 +90,8 @@ pub struct ThemeSettings {
     pub ui_density: UiDensity,
     /// The amount of fading applied to unnecessary code.
     pub unnecessary_code_fade: f32,
+    /// The language used for the UI.
+    pub ui_language: UiLanguage,
 }
 
 /// Returns the name of the default theme for the given [`Appearance`].
@@ -661,6 +670,7 @@ impl settings::Settings for ThemeSettings {
             icon_theme: icon_theme_selection,
             ui_density: ui_density_from_settings(content.ui_density.unwrap_or_default()),
             unnecessary_code_fade: content.unnecessary_code_fade.unwrap().0.clamp(0.0, 0.9),
+            ui_language: ui_language_from_settings(content.ui_language.unwrap_or_default()),
         }
     }
 }

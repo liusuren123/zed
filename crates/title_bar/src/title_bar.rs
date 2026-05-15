@@ -42,7 +42,7 @@ use settings::Settings as _;
 
 use std::sync::Arc;
 use std::time::Duration;
-use theme::ActiveTheme;
+use theme::{ActiveTheme, translate};
 use title_bar_settings::TitleBarSettings;
 use ui::{
     Avatar, ButtonLike, ContextMenu, ContextMenuEntry, IconWithIndicator, Indicator, PopoverMenu,
@@ -1236,7 +1236,9 @@ impl TitleBar {
                 let is_custom = matches!(current_layout, WindowLayout::Custom(_));
                 let fs = <dyn fs::Fs>::global(cx);
 
-                ContextMenu::build(window, cx, |menu, _, _cx| {
+                ContextMenu::build(window, cx, |menu, _, cx| {
+                    let sign_out_label = translate("Sign Out", cx);
+                    let panel_layout_label = translate("Panel Layout", cx);
                     menu.when(is_signed_in, |this| {
                         let user_login = user_login.clone();
                         this.custom_entry(
@@ -1331,27 +1333,33 @@ impl TitleBar {
 
                         this.separator()
                     })
-                    .action("Settings", zed_actions::OpenSettings.boxed_clone())
-                    .action("Keymap", Box::new(zed_actions::OpenKeymap))
                     .action(
-                        "Themes…",
+                        translate("Settings", cx),
+                        zed_actions::OpenSettings.boxed_clone(),
+                    )
+                    .action(translate("Keymap", cx), Box::new(zed_actions::OpenKeymap))
+                    .action(
+                        translate("Themes\u{2026}", cx),
                         zed_actions::theme_selector::Toggle::default().boxed_clone(),
                     )
                     .action(
-                        "Icon Themes…",
+                        translate("Icon Themes\u{2026}", cx),
                         zed_actions::icon_theme_selector::Toggle::default().boxed_clone(),
                     )
                     .action(
-                        "Extensions",
+                        translate("Extensions", cx),
                         zed_actions::Extensions::default().boxed_clone(),
                     )
                     .when(ai_enabled, |menu| {
                         let fs = fs.clone();
                         menu.separator()
-                            .submenu("Panel Layout", move |menu, _window, _cx| {
+                            .submenu(panel_layout_label, move |menu, _window, cx| {
                                 let fs = fs.clone();
+                                let classic_label = translate("Classic", cx);
+                                let agentic_label = translate("Agentic", cx);
+                                let custom_label = translate("Custom", cx);
                                 menu.toggleable_entry(
-                                    "Classic",
+                                    classic_label,
                                     is_editor,
                                     IconPosition::Start,
                                     None,
@@ -1366,19 +1374,25 @@ impl TitleBar {
                                         }
                                     },
                                 )
-                                .toggleable_entry("Agentic", is_agent, IconPosition::Start, None, {
-                                    let fs = fs.clone();
-                                    move |_window, cx| {
-                                        drop(AgentSettings::set_layout(
-                                            WindowLayout::Agent(None),
-                                            fs.clone(),
-                                            cx,
-                                        ));
-                                    }
-                                })
+                                .toggleable_entry(
+                                    agentic_label,
+                                    is_agent,
+                                    IconPosition::Start,
+                                    None,
+                                    {
+                                        let fs = fs.clone();
+                                        move |_window, cx| {
+                                            drop(AgentSettings::set_layout(
+                                                WindowLayout::Agent(None),
+                                                fs.clone(),
+                                                cx,
+                                            ));
+                                        }
+                                    },
+                                )
                                 .when(is_custom, |menu| {
                                     menu.item(
-                                        ContextMenuEntry::new("Custom")
+                                        ContextMenuEntry::new(custom_label)
                                             .toggleable(IconPosition::Start, true)
                                             .disabled(true),
                                     )
@@ -1387,7 +1401,7 @@ impl TitleBar {
                     })
                     .when(is_signed_in, |this| {
                         this.separator()
-                            .action("Sign Out", client::SignOut.boxed_clone())
+                            .action(sign_out_label, client::SignOut.boxed_clone())
                     })
                 })
                 .into()

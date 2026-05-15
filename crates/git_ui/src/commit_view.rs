@@ -27,6 +27,7 @@ use std::{
     sync::Arc,
 };
 use theme::ActiveTheme;
+use theme::translate;
 use ui::{ContextMenu, DiffStat, Divider, Tooltip, prelude::*};
 use util::{ResultExt, paths::PathStyle, rel_path::RelPath, truncate_and_trailoff};
 use workspace::item::TabTooltipContent;
@@ -610,7 +611,7 @@ impl CommitView {
             )
             .when(self.stash.is_none(), |this| {
                 this.child(
-                    Button::new("sha", "Commit SHA")
+                    Button::new("sha", translate("Commit SHA", cx))
                         .start_icon(
                             Icon::new(copy_icon)
                                 .size(IconSize::Small)
@@ -619,7 +620,12 @@ impl CommitView {
                         .tooltip({
                             let commit_sha = commit_sha.clone();
                             move |_, cx| {
-                                Tooltip::with_meta("Copy Commit SHA", None, commit_sha.clone(), cx)
+                                Tooltip::with_meta(
+                                    translate("Copy Commit SHA", cx),
+                                    None,
+                                    commit_sha.clone(),
+                                    cx,
+                                )
                             }
                         })
                         .on_click(move |_, _, cx| {
@@ -715,7 +721,7 @@ impl CommitView {
 
     fn stash_action<AsyncFn>(
         workspace: &mut Workspace,
-        str_action: &str,
+        str_action: &'static str,
         window: &mut Window,
         cx: &mut App,
         callback: AsyncFn,
@@ -739,7 +745,7 @@ impl CommitView {
         let sha = commit_view.read(cx).commit.sha.clone();
         let answer = window.prompt(
             PromptLevel::Info,
-            &format!("{} stash@{{{}}}?", str_action, stash),
+            &format!("{} stash@{{{}}}?", translate(str_action, cx), stash),
             None,
             &[str_action, "Cancel"],
             cx,
@@ -1153,7 +1159,7 @@ impl Render for CommitViewToolbar {
                     .icon_size(IconSize::Small)
                     .tooltip(move |_, cx| {
                         Tooltip::for_action(
-                            "Buffer Search",
+                            translate("Buffer Search", cx),
                             &zed_actions::buffer_search::Deploy::find(),
                             cx,
                         )
@@ -1169,7 +1175,7 @@ impl Render for CommitViewToolbar {
                 this.child(
                     IconButton::new("show-in-git-graph", IconName::GitGraph)
                         .icon_size(IconSize::Small)
-                        .tooltip(Tooltip::text("Show in Git Graph"))
+                        .tooltip(Tooltip::text(translate("Show in Git Graph", cx)))
                         .on_click(move |_, window, cx| {
                             window.dispatch_action(
                                 Box::new(crate::git_panel::OpenAtCommit {
@@ -1187,7 +1193,11 @@ impl Render for CommitViewToolbar {
 
                     IconButton::new("view_on_provider", icon)
                         .icon_size(IconSize::Small)
-                        .tooltip(Tooltip::text(format!("View on {}", provider_name)))
+                        .tooltip(Tooltip::text(format!(
+                            "{} {}",
+                            translate("View on", cx),
+                            provider_name
+                        )))
                         .on_click(move |_, _, cx| cx.open_url(&url))
                 }))
             })

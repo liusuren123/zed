@@ -36,6 +36,7 @@ mod ui;
 
 use std::rc::Rc;
 use std::sync::Arc;
+use theme::translate;
 
 use ::ui::IconName;
 use agent_client_protocol::schema as acp;
@@ -304,6 +305,15 @@ impl Agent {
     pub fn label(&self) -> SharedString {
         match self {
             Self::NativeAgent => "Zed Agent".into(),
+            Self::Custom { id, .. } => id.0.clone(),
+            #[cfg(any(test, feature = "test-support"))]
+            Self::Stub => "Stub Agent".into(),
+        }
+    }
+
+    pub fn translated_label(&self, cx: &App) -> SharedString {
+        match self {
+            Self::NativeAgent => translate("Zed Agent", cx),
             Self::Custom { id, .. } => id.0.clone(),
             #[cfg(any(test, feature = "test-support"))]
             Self::Stub => "Stub Agent".into(),

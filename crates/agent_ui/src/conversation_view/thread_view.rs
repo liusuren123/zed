@@ -381,7 +381,7 @@ impl ThreadView {
         let parent_session_id = thread.read(cx).parent_session_id().cloned();
 
         let has_commands = !session_capabilities.read().available_commands().is_empty();
-        let placeholder = placeholder_text(agent_display_name.as_ref(), has_commands);
+        let placeholder = placeholder_text(agent_display_name.as_ref(), has_commands, cx);
 
         let mut should_auto_submit = false;
         let mut show_external_source_prompt_warning = false;
@@ -444,7 +444,7 @@ impl ThreadView {
                 if let Some(title) = thread.read(cx).title() {
                     editor.set_text(title, window, cx);
                 } else {
-                    editor.set_text(DEFAULT_THREAD_TITLE, window, cx);
+                    editor.set_text(translate(DEFAULT_THREAD_TITLE, cx), window, cx);
                 }
                 editor.set_read_only(!can_edit);
                 editor
@@ -1656,7 +1656,7 @@ impl ThreadView {
             EditorEvent::Blurred => {
                 if title_editor.read(cx).text(cx).is_empty() {
                     title_editor.update(cx, |editor, cx| {
-                        editor.set_text(DEFAULT_THREAD_TITLE, window, cx);
+                        editor.set_text(translate(DEFAULT_THREAD_TITLE, cx), window, cx);
                     });
                 }
             }
@@ -5263,7 +5263,7 @@ impl ThreadView {
         let thread = self.thread.read(cx);
         let thread_title = thread
             .title()
-            .unwrap_or_else(|| DEFAULT_THREAD_TITLE.into())
+            .unwrap_or_else(|| translate(DEFAULT_THREAD_TITLE, cx).into())
             .to_string();
         let markdown = thread.to_markdown(cx);
 

@@ -3,6 +3,7 @@ use std::rc::Rc;
 use collections::HashMap;
 use gpui::{Anchor, Entity, WeakEntity};
 use project::debugger::session::{ThreadId, ThreadStatus};
+use theme::translate;
 use ui::{CommonAnimationExt, ContextMenu, DropdownMenu, DropdownStyle, Indicator, prelude::*};
 use util::{maybe, truncate_and_trailoff};
 
@@ -23,15 +24,15 @@ impl SessionListEntry {
         let mut label = String::new();
         for ancestor in &self.ancestors {
             label.push_str(&ancestor.update(cx, |ancestor, cx| {
-                ancestor.label(cx).unwrap_or("(child)".into())
+                ancestor
+                    .label(cx)
+                    .unwrap_or_else(|| translate("(child)", cx))
             }));
             label.push_str(" » ");
         }
-        label.push_str(
-            &self
-                .leaf
-                .update(cx, |leaf, cx| leaf.label(cx).unwrap_or("(child)".into())),
-        );
+        label.push_str(&self.leaf.update(cx, |leaf, cx| {
+            leaf.label(cx).unwrap_or_else(|| translate("(child)", cx))
+        }));
         let label = truncate_and_trailoff(&label, MAX_LABEL_CHARS);
 
         let is_terminated = self
@@ -118,10 +119,12 @@ impl DebugPanel {
         let weak = cx.weak_entity();
         let trigger_label = if let Some(active_session) = active_session.clone() {
             active_session.update(cx, |active_session, cx| {
-                active_session.label(cx).unwrap_or("(child)".into())
+                active_session
+                    .label(cx)
+                    .unwrap_or_else(|| translate("(child)", cx))
             })
         } else {
-            SharedString::new_static("Unknown Session")
+            translate("Unknown Session", cx)
         };
         let running_state = running_state.read(cx);
 

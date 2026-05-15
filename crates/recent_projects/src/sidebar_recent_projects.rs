@@ -11,6 +11,7 @@ use picker::{
 };
 use remote::RemoteConnectionOptions;
 use settings::Settings;
+use theme::translate;
 use ui::{ButtonLike, KeyBinding, ListItem, ListItemSpacing, Tooltip, prelude::*};
 use ui_input::ErasedEditor;
 use util::{ResultExt, paths::PathExt};
@@ -293,10 +294,10 @@ impl PickerDelegate for SidebarRecentProjectsDelegate {
     fn dismissed(&mut self, _window: &mut Window, _cx: &mut Context<Picker<Self>>) {}
 
     fn no_matches_text(&self, _window: &mut Window, _cx: &mut App) -> Option<SharedString> {
-        let text = if self.workspaces.is_empty() {
-            "Recently opened projects will show up here"
+        let text: SharedString = if self.workspaces.is_empty() {
+            translate("Recently opened projects will show up here", _cx)
         } else {
-            "No matches"
+            "No matches".into()
         };
         Some(text.into())
     }

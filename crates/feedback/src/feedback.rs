@@ -2,6 +2,7 @@ use client::telemetry;
 use extension_host::ExtensionStore;
 use gpui::{App, ClipboardItem, PromptLevel, actions};
 use system_specs::{CopySystemSpecsIntoClipboard, SystemSpecs};
+use theme::translate;
 use util::ResultExt;
 use workspace::Workspace;
 use zed_actions::feedback::{EmailZed, FileBugReport, RequestFeature};
@@ -51,6 +52,8 @@ pub fn init(cx: &mut App) {
             .register_action(|_, _: &CopySystemSpecsIntoClipboard, window, cx| {
                 let specs =
                     SystemSpecs::new(window, cx, telemetry::os_name(), telemetry::os_version());
+                let copied_msg = translate("Copied into clipboard", cx);
+                let ok_button = translate("OK", cx);
 
                 cx.spawn_in(window, async move |_, cx| {
                     let specs = specs.await.to_string();
@@ -62,9 +65,9 @@ pub fn init(cx: &mut App) {
 
                     cx.prompt(
                         PromptLevel::Info,
-                        "Copied into clipboard",
+                        &copied_msg,
                         Some(&specs),
-                        &["OK"],
+                        &[ok_button.as_ref()],
                     )
                     .await
                 })
@@ -73,11 +76,13 @@ pub fn init(cx: &mut App) {
             .register_action(|_, _: &CopyInstalledExtensionsIntoClipboard, window, cx| {
                 let clipboard_text = format_installed_extensions_for_clipboard(cx);
                 cx.write_to_clipboard(ClipboardItem::new_string(clipboard_text.clone()));
+                let copied_msg = translate("Copied into clipboard", cx);
+                let ok_button = translate("OK", cx);
                 drop(window.prompt(
                     PromptLevel::Info,
-                    "Copied into clipboard",
+                    &copied_msg,
                     Some(&clipboard_text),
-                    &["OK"],
+                    &[ok_button.as_ref()],
                     cx,
                 ));
             })

@@ -31,6 +31,7 @@ use rpc::proto::{self};
 use settings::Settings;
 use std::sync::{Arc, LazyLock};
 use task::{DebugScenario, SharedTaskContext};
+use theme::translate;
 use tree_sitter::{Query, StreamingIterator as _};
 use ui::{
     ContextMenu, Divider, PopoverMenu, PopoverMenuHandle, SplitButton, Tab, Tooltip, prelude::*,
@@ -503,13 +504,20 @@ impl DebugPanel {
             })
             .unwrap_or_default();
 
+        let message = translate(
+            "This Debug Session is still running. Are you sure you want to terminate it?",
+            cx,
+        );
+        let yes = translate("Yes", cx);
+        let no = translate("No", cx);
+
         cx.spawn_in(window, async move |this, cx| {
             if should_prompt {
                 let response = cx.prompt(
                     gpui::PromptLevel::Warning,
-                    "This Debug Session is still running. Are you sure you want to terminate it?",
+                    message.as_ref(),
                     None,
-                    &["Yes", "No"],
+                    &[yes.as_ref(), no.as_ref()],
                 );
                 if response.await == Ok(1) {
                     return;
@@ -616,6 +624,11 @@ impl DebugPanel {
         let is_side = self.position(window, cx).axis() == gpui::Axis::Horizontal;
         let div = if is_side { v_flex() } else { h_flex() };
 
+        let edit_debug_json_label = translate("Edit debug.json", cx);
+        let open_documentation_label = translate("Open Documentation", cx);
+        let open_debug_adapter_logs_label = translate("Open Debug Adapter Logs", cx);
+        let close_panel_label = translate("Close Panel", cx);
+
         let new_session_button = || {
             IconButton::new("debug-new-session", IconName::Plus)
                 .icon_size(IconSize::Small)
@@ -626,7 +639,7 @@ impl DebugPanel {
                     let focus_handle = focus_handle.clone();
                     move |_window, cx| {
                         Tooltip::for_action_in(
-                            "Start Debug Session",
+                            translate("Start Debug Session", cx),
                             &crate::Start,
                             &focus_handle,
                             cx,
@@ -635,39 +648,51 @@ impl DebugPanel {
                 })
         };
 
-        let edit_debug_json_button = || {
-            IconButton::new("debug-edit-debug-json", IconName::Code)
-                .icon_size(IconSize::Small)
-                .on_click(|_, window, cx| {
-                    window.dispatch_action(zed_actions::OpenProjectDebugTasks.boxed_clone(), cx);
-                })
-                .tooltip(Tooltip::text("Edit debug.json"))
+        let edit_debug_json_button = {
+            let edit_debug_json_label = edit_debug_json_label.clone();
+            move || {
+                IconButton::new("debug-edit-debug-json", IconName::Code)
+                    .icon_size(IconSize::Small)
+                    .on_click(|_, window, cx| {
+                        window
+                            .dispatch_action(zed_actions::OpenProjectDebugTasks.boxed_clone(), cx);
+                    })
+                    .tooltip(Tooltip::text(edit_debug_json_label.clone()))
+            }
         };
 
-        let documentation_button = || {
-            IconButton::new("debug-open-documentation", IconName::CircleHelp)
-                .icon_size(IconSize::Small)
-                .on_click(move |_, _, cx| cx.open_url("https://zed.dev/docs/debugger"))
-                .tooltip(Tooltip::text("Open Documentation"))
+        let documentation_button = {
+            let open_documentation_label = open_documentation_label.clone();
+            move || {
+                IconButton::new("debug-open-documentation", IconName::CircleHelp)
+                    .icon_size(IconSize::Small)
+                    .on_click(move |_, _, cx| cx.open_url("https://zed.dev/docs/debugger"))
+                    .tooltip(Tooltip::text(open_documentation_label.clone()))
+            }
         };
 
-        let logs_button = || {
-            IconButton::new("debug-open-logs", IconName::Notepad)
-                .icon_size(IconSize::Small)
-                .on_click(move |_, window, cx| {
-                    window.dispatch_action(debugger_tools::OpenDebugAdapterLogs.boxed_clone(), cx)
-                })
-                .tooltip(Tooltip::text("Open Debug Adapter Logs"))
+        let logs_button = {
+            let open_debug_adapter_logs_label = open_debug_adapter_logs_label.clone();
+            move || {
+                IconButton::new("debug-open-logs", IconName::Notepad)
+                    .icon_size(IconSize::Small)
+                    .on_click(move |_, window, cx| {
+                        window
+                            .dispatch_action(debugger_tools::OpenDebugAdapterLogs.boxed_clone(), cx)
+                    })
+                    .tooltip(Tooltip::text(open_debug_adapter_logs_label.clone()))
+            }
         };
 
         let close_bottom_panel_button = {
+            let close_panel_label = close_panel_label.clone();
             h_flex().pl_0p5().gap_1().child(Divider::vertical()).child(
                 IconButton::new("debug-close-panel", IconName::Close)
                     .icon_size(IconSize::Small)
                     .on_click(move |_, window, cx| {
                         window.dispatch_action(workspace::ToggleBottomDock.boxed_clone(), cx)
                     })
-                    .tooltip(Tooltip::text("Close Panel")),
+                    .tooltip(Tooltip::text(close_panel_label.clone())),
             )
         };
 
@@ -716,7 +741,7 @@ impl DebugPanel {
                                                     let focus_handle = focus_handle.clone();
                                                     move |_window, cx| {
                                                         Tooltip::for_action_in(
-                                                            "Pause Program",
+                                                            translate("Pause Program", cx),
                                                             &Pause,
                                                             &focus_handle,
                                                             cx,
@@ -740,7 +765,7 @@ impl DebugPanel {
                                                     let focus_handle = focus_handle.clone();
                                                     move |_window, cx| {
                                                         Tooltip::for_action_in(
-                                                            "Continue Program",
+                                                            translate("Continue Program", cx),
                                                             &Continue,
                                                             &focus_handle,
                                                             cx,
@@ -764,7 +789,7 @@ impl DebugPanel {
                                                 let focus_handle = focus_handle.clone();
                                                 move |_window, cx| {
                                                     Tooltip::for_action_in(
-                                                        "Step Over",
+                                                        translate("Step Over", cx),
                                                         &StepOver,
                                                         &focus_handle,
                                                         cx,
@@ -786,7 +811,7 @@ impl DebugPanel {
                                                 let focus_handle = focus_handle.clone();
                                                 move |_window, cx| {
                                                     Tooltip::for_action_in(
-                                                        "Step In",
+                                                        translate("Step In", cx),
                                                         &StepInto,
                                                         &focus_handle,
                                                         cx,
@@ -808,7 +833,7 @@ impl DebugPanel {
                                                 let focus_handle = focus_handle.clone();
                                                 move |_window, cx| {
                                                     Tooltip::for_action_in(
-                                                        "Step Out",
+                                                        translate("Step Out", cx),
                                                         &StepOut,
                                                         &focus_handle,
                                                         cx,
@@ -830,7 +855,7 @@ impl DebugPanel {
                                                 let focus_handle = focus_handle.clone();
                                                 move |_window, cx| {
                                                     Tooltip::for_action_in(
-                                                        "Rerun Session",
+                                                        translate("Rerun Session", cx),
                                                         &RerunSession,
                                                         &focus_handle,
                                                         cx,
@@ -864,17 +889,17 @@ impl DebugPanel {
                                             ))
                                             .tooltip({
                                                 let focus_handle = focus_handle.clone();
-                                                let label = if capabilities
+                                                let supports_terminate_threads = capabilities
                                                     .supports_terminate_threads_request
-                                                    .unwrap_or_default()
-                                                {
-                                                    "Terminate Thread"
+                                                    .unwrap_or_default();
+                                                let label = if supports_terminate_threads {
+                                                    translate("Terminate Thread", cx)
                                                 } else {
-                                                    "Terminate All Threads"
+                                                    translate("Terminate All Threads", cx)
                                                 };
                                                 move |_window, cx| {
                                                     Tooltip::for_action_in(
-                                                        label,
+                                                        label.clone(),
                                                         &Stop,
                                                         &focus_handle,
                                                         cx,
@@ -903,7 +928,7 @@ impl DebugPanel {
                                                 let focus_handle = focus_handle.clone();
                                                 move |_window, cx| {
                                                     Tooltip::for_action_in(
-                                                        "Detach",
+                                                        translate("Detach", cx),
                                                         &Detach,
                                                         &focus_handle,
                                                         cx,
@@ -946,14 +971,15 @@ impl DebugPanel {
                     h_flex()
                         .gap_0p5()
                         .when(is_side, |this| this.justify_between())
-                        .child(
-                            h_flex().when_some(
-                                active_session
+                        .child({
+                            let running_state_for_threads = active_session
+                                .as_ref()
+                                .map(|session| session.read(cx).running_state())
+                                .cloned();
+                            let thread_dropdown: Option<gpui::AnyElement> =
+                                running_state_for_threads
                                     .as_ref()
-                                    .map(|session| session.read(cx).running_state())
-                                    .cloned(),
-                                |this, running_state| {
-                                    this.children({
+                                    .and_then(|running_state| {
                                         let threads =
                                             running_state.update(cx, |running_state, cx| {
                                                 let session = running_state.session();
@@ -963,22 +989,23 @@ impl DebugPanel {
                                                     })
                                                 })
                                             });
-
                                         threads.and_then(|threads| {
                                             self.render_thread_dropdown(
-                                                &running_state,
+                                                running_state,
                                                 threads,
                                                 window,
                                                 cx,
                                             )
+                                            .map(|dropdown| dropdown.into_any_element())
                                         })
-                                    })
-                                    .when(!is_side, |this| {
-                                        this.gap_0p5().child(Divider::vertical())
-                                    })
-                                },
-                            ),
-                        )
+                                    });
+
+                            h_flex().when_some(thread_dropdown, |this, dropdown| {
+                                this.child(dropdown).when(!is_side, |this| {
+                                    this.gap_0p5().child(Divider::vertical())
+                                })
+                            })
+                        })
                         .child(
                             h_flex()
                                 .gap_0p5()

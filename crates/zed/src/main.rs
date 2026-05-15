@@ -849,6 +849,11 @@ fn main() {
 
         let menus = app_menus(cx);
         cx.set_menus(menus);
+        cx.observe_global::<theme::GlobalUiLanguage>(move |cx| {
+            let menus = app_menus(cx);
+            cx.set_menus(menus);
+        })
+        .detach();
 
         if let Some(mut crash_handler) = crash_handler {
             let crash_handler2 = block_on(poll_once(&mut crash_handler));

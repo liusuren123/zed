@@ -1288,7 +1288,27 @@ fn appearance_page() -> SettingsPage {
         ]
     }
 
+    fn language_section() -> [SettingsPageItem; 2] {
+        [
+            SettingsPageItem::SectionHeader("Language"),
+            SettingsPageItem::SettingItem(SettingItem {
+                files: USER,
+                title: "UI Language",
+                description: "Choose the language used for the Zed user interface.",
+                field: Box::new(SettingField {
+                    json_path: Some("ui_language"),
+                    pick: |settings_content| settings_content.theme.ui_language.as_ref(),
+                    write: |settings_content, value, _| {
+                        settings_content.theme.ui_language = value;
+                    },
+                }),
+                metadata: None,
+            }),
+        ]
+    }
+
     let items: Box<[SettingsPageItem]> = concat_sections!(
+        language_section(),
         theme_section(),
         buffer_font_section(),
         ui_font_section(),

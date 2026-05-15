@@ -16,6 +16,7 @@ use std::{
     sync::atomic::Ordering,
     sync::{Arc, atomic::AtomicBool},
 };
+use theme::translate;
 use ui::{
     DocumentationAside, HighlightedLabel, KeyBinding, LabelSize, ListItem, ListItemSpacing,
     PopoverMenuHandle, Tooltip, prelude::*,
@@ -340,11 +341,11 @@ impl ProfilePickerDelegate {
             .collect()
     }
 
-    fn documentation(candidate: &ProfileCandidate) -> Option<&'static str> {
+    fn documentation(candidate: &ProfileCandidate, cx: &App) -> Option<SharedString> {
         match candidate.id.as_str() {
-            builtin_profiles::WRITE => Some("Get help to write anything."),
-            builtin_profiles::ASK => Some("Chat about your codebase."),
-            builtin_profiles::MINIMAL => Some("Chat about anything with no tools."),
+            builtin_profiles::WRITE => Some(translate("Get help to write anything.", cx)),
+            builtin_profiles::ASK => Some(translate("Chat about your codebase.", cx)),
+            builtin_profiles::MINIMAL => Some(translate("Chat about anything with no tools.", cx)),
             _ => None,
         }
     }
@@ -589,7 +590,7 @@ impl PickerDelegate for ProfilePickerDelegate {
                 let candidate = self.candidates.get(entry.candidate_index)?;
                 let active_id = self.provider.profile_id(cx);
                 let is_active = active_id == candidate.id;
-                let has_documentation = Self::documentation(candidate).is_some();
+                let has_documentation = Self::documentation(candidate, cx).is_some();
 
                 Some(
                     div()
@@ -641,7 +642,7 @@ impl PickerDelegate for ProfilePickerDelegate {
         };
 
         let candidate = self.candidates.get(entry.candidate_index)?;
-        let docs_aside = Self::documentation(candidate)?.to_string();
+        let docs_aside = Self::documentation(candidate, cx)?.to_string();
 
         let side = documentation_aside_side(cx);
 

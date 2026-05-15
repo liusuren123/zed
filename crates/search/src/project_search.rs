@@ -42,6 +42,7 @@ use std::{
     pin::pin,
     sync::Arc,
 };
+use theme::translate;
 use ui::{
     CommonAnimationExt, IconButtonShape, KeyBinding, Toggleable, Tooltip, prelude::*,
     utils::SearchInputWidth,
@@ -577,9 +578,12 @@ impl Render for ProjectSearchView {
             let page_content: Option<AnyElement> = match model.search_state {
                 SearchState::Idle => Some(self.landing_text_minor(cx).into_any_element()),
                 SearchState::Completed(SearchCompletion::NoResults) => Some(
-                    Label::new("No results found in this project for the provided query")
-                        .size(LabelSize::Small)
-                        .into_any_element(),
+                    Label::new(translate(
+                        "No results found in this project for the provided query",
+                        cx,
+                    ))
+                    .size(LabelSize::Small)
+                    .into_any_element(),
                 ),
                 _ => None,
             };
@@ -978,7 +982,8 @@ impl ProjectSearchView {
 
         let query_editor = cx.new(|cx| {
             let mut editor = Editor::auto_height(1, 4, window, cx);
-            editor.set_placeholder_text("Search all files…", window, cx);
+            let placeholder = translate("Search all files…", cx);
+            editor.set_placeholder_text(&placeholder, window, cx);
             editor.set_use_autoclose(false);
             editor.set_use_selection_highlight(false);
             editor.set_text(query_text, window, cx);
@@ -1726,20 +1731,23 @@ impl ProjectSearchView {
         v_flex()
             .gap_1()
             .child(
-                Label::new("Hit enter to search. For more options:")
+                Label::new(translate("Hit enter to search. For more options:", cx))
                     .color(Color::Muted)
                     .mb_2(),
             )
             .child(
-                Button::new("filter-paths", "Include/exclude specific paths")
-                    .start_icon(Icon::new(IconName::Filter).size(IconSize::Small))
-                    .key_binding(KeyBinding::for_action_in(&ToggleFilters, &focus_handle, cx))
-                    .on_click(|_event, window, cx| {
-                        window.dispatch_action(ToggleFilters.boxed_clone(), cx)
-                    }),
+                Button::new(
+                    "filter-paths",
+                    translate("Include/exclude specific paths", cx),
+                )
+                .start_icon(Icon::new(IconName::Filter).size(IconSize::Small))
+                .key_binding(KeyBinding::for_action_in(&ToggleFilters, &focus_handle, cx))
+                .on_click(|_event, window, cx| {
+                    window.dispatch_action(ToggleFilters.boxed_clone(), cx)
+                }),
             )
             .child(
-                Button::new("find-replace", "Find and replace")
+                Button::new("find-replace", translate("Find and replace", cx))
                     .start_icon(Icon::new(IconName::Replace).size(IconSize::Small))
                     .key_binding(KeyBinding::for_action_in(&ToggleReplace, &focus_handle, cx))
                     .on_click(|_event, window, cx| {
@@ -1747,7 +1755,7 @@ impl ProjectSearchView {
                     }),
             )
             .child(
-                Button::new("regex", "Match with regex")
+                Button::new("regex", translate("Match with regex", cx))
                     .start_icon(Icon::new(IconName::Regex).size(IconSize::Small))
                     .key_binding(KeyBinding::for_action_in(&ToggleRegex, &focus_handle, cx))
                     .on_click(|_event, window, cx| {
@@ -1755,7 +1763,7 @@ impl ProjectSearchView {
                     }),
             )
             .child(
-                Button::new("match-case", "Match case")
+                Button::new("match-case", translate("Match case", cx))
                     .start_icon(Icon::new(IconName::CaseSensitive).size(IconSize::Small))
                     .key_binding(KeyBinding::for_action_in(
                         &ToggleCaseSensitive,
@@ -1767,7 +1775,7 @@ impl ProjectSearchView {
                     }),
             )
             .child(
-                Button::new("match-whole-words", "Match whole words")
+                Button::new("match-whole-words", translate("Match whole words", cx))
                     .start_icon(Icon::new(IconName::WholeWord).size(IconSize::Small))
                     .key_binding(KeyBinding::for_action_in(
                         &ToggleWholeWord,
@@ -2467,7 +2475,7 @@ impl Render for ProjectSearchBar {
                     IconButton::new("project-search-opened-only", IconName::FolderSearch)
                         .shape(IconButtonShape::Square)
                         .toggle_state(self.is_opened_only_enabled(cx))
-                        .tooltip(Tooltip::text("Only Search Open Files"))
+                        .tooltip(Tooltip::text(translate("Only Search Open Files", cx)))
                         .on_click(cx.listener(|this, _, window, cx| {
                             this.toggle_opened_only(window, cx);
                         })),

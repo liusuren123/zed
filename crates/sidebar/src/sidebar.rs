@@ -46,7 +46,7 @@ use std::mem;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
-use theme::ActiveTheme;
+use theme::{ActiveTheme, translate};
 use ui::{
     AgentThreadStatus, CommonAnimationExt, ContextMenu, Divider, GradientFade, HighlightedLabel,
     KeyBinding, PopoverMenu, PopoverMenuHandle, ScrollAxes, Scrollbars, Tab, ThreadItem,
@@ -1437,13 +1437,14 @@ impl Sidebar {
                     fuzzy_match_positions(&query, &label).unwrap_or_default();
                 let workspace_matched = !workspace_highlight_positions.is_empty();
 
+                let default_thread_title = translate(DEFAULT_THREAD_TITLE, cx);
                 let mut matched_threads: Vec<ThreadEntry> = Vec::new();
                 for mut thread in threads {
                     let title: &str = thread
                         .metadata
                         .title
                         .as_ref()
-                        .map_or(DEFAULT_THREAD_TITLE, |t| t.as_ref());
+                        .map_or(default_thread_title.as_ref(), |t| t.as_ref());
                     if let Some(positions) = fuzzy_match_positions(&query, title) {
                         thread.highlight_positions = positions;
                     }
@@ -4216,7 +4217,7 @@ impl Sidebar {
     ) -> AnyElement {
         let has_notification = self.contents.is_thread_notified(&thread.metadata.thread_id);
 
-        let title: SharedString = thread.metadata.display_title();
+        let title: SharedString = thread.metadata.display_title_for_ui(cx);
         let metadata = thread.metadata.clone();
         let thread_workspace = thread.workspace.clone();
 
@@ -5520,7 +5521,7 @@ fn all_thread_infos_for_workspace(
             let icon_from_external_svg = thread_view_ref.agent_icon_from_external_svg.clone();
             let title = thread
                 .title()
-                .unwrap_or_else(|| DEFAULT_THREAD_TITLE.into());
+                .unwrap_or_else(|| translate(DEFAULT_THREAD_TITLE, cx).into());
             let is_title_generating = thread_view_ref
                 .as_native_thread(cx)
                 .is_some_and(|native_thread| native_thread.read(cx).is_generating_title());

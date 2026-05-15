@@ -10,6 +10,7 @@ use picker::{Picker, PickerDelegate};
 use release_channel::ReleaseChannel;
 use semver::Version;
 use settings::update_settings_file;
+use theme::translate;
 use ui::{HighlightedLabel, ListItem, ListItemSpacing, prelude::*};
 use util::ResultExt;
 use workspace::ModalView;
@@ -234,7 +235,9 @@ impl PickerDelegate for ExtensionVersionSelectorDelegate {
                     h_flex()
                         .gap_2()
                         .when(!is_version_compatible, |this| {
-                            this.child(Label::new("Incompatible").color(Color::Muted))
+                            this.child(
+                                Label::new(translate("Incompatible", cx)).color(Color::Muted),
+                            )
                         })
                         .child(
                             Label::new(

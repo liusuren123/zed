@@ -33,6 +33,7 @@ use std::{
     sync::{Arc, LazyLock, RwLock},
     time::Duration,
 };
+use theme::translate;
 use theme_settings::ThemeSettings;
 use ui::{
     Banner, ContextMenu, Divider, DropdownMenu, DropdownStyle, IconButtonShape, KeyBinding,
@@ -432,12 +433,12 @@ fn init_renderers(cx: &mut App) {
                     settings_window,
                     item,
                     settings_file,
-                    Button::new("open-in-settings-file", "Edit in settings.json")
+                    Button::new("open-in-settings-file", translate("Edit in settings.json", cx))
                         .style(ButtonStyle::Outlined)
                         .size(ButtonSize::Medium)
                         .tab_index(0_isize)
                         .tooltip(Tooltip::for_action_title_in(
-                            "Edit in settings.json",
+                            translate("Edit in settings.json", cx),
                             &OpenCurrentFile,
                             &settings_window.focus_handle,
                         ))
@@ -539,6 +540,7 @@ fn init_renderers(cx: &mut App) {
         .add_basic_renderer::<settings::PaneSplitDirectionVertical>(render_dropdown)
         .add_basic_renderer::<settings::CodeLens>(render_dropdown)
         .add_basic_renderer::<settings::DocumentColorsRenderMode>(render_dropdown)
+        .add_basic_renderer::<settings::UiLanguage>(render_dropdown)
         .add_basic_renderer::<settings::ThemeSelectionDiscriminants>(render_dropdown)
         .add_basic_renderer::<settings::ThemeAppearanceMode>(render_dropdown)
         .add_basic_renderer::<settings::ThemeName>(render_theme_picker)
@@ -667,7 +669,7 @@ pub fn open_settings_editor(
         cx.open_window(
             WindowOptions {
                 titlebar: Some(TitlebarOptions {
-                    title: Some("Zed — Settings".into()),
+                    title: Some(translate("Zed \u{2014} Settings", cx)),
                     appears_transparent: true,
                     traffic_light_position: Some(point(px(12.0), px(12.0))),
                 }),
@@ -951,7 +953,7 @@ impl SettingsPageItem {
 
         match self {
             SettingsPageItem::SectionHeader(header) => {
-                SettingsSectionHeader::new(SharedString::new_static(header)).into_any_element()
+                SettingsSectionHeader::new(translate(header, cx)).into_any_element()
             }
             SettingsPageItem::SettingItem(setting_item) => {
                 let (field_with_padding, _) =
@@ -994,7 +996,7 @@ impl SettingsPageItem {
                         .child(
                             Button::new(
                                 ("sub-page".into(), sub_page_link.title.clone()),
-                                "Configure",
+                                translate("Configure", cx),
                             )
                             .tab_index(0_isize)
                             .end_icon(
@@ -1178,7 +1180,7 @@ fn render_settings_item(
                     h_flex()
                         .w_full()
                         .gap_1()
-                        .child(Label::new(SharedString::new_static(setting_item.title)))
+                        .child(Label::new(translate(setting_item.title, cx)))
                         .when_some(
                             if sub_field {
                                 None
@@ -1218,7 +1220,7 @@ fn render_settings_item(
                         ),
                 )
                 .child(
-                    Label::new(SharedString::new_static(setting_item.description))
+                    Label::new(translate(setting_item.description, cx))
                         .size(LabelSize::Small)
                         .color(Color::Muted)
                         .render_code_spans(),
@@ -2762,7 +2764,7 @@ impl SettingsWindow {
                                     .map(|(entry_index, entry)| {
                                         TreeViewItem::new(
                                             ("settings-ui-navbar-entry", entry_index),
-                                            entry.title,
+                                            translate(entry.title, cx),
                                         )
                                         .track_focus(&entry.focus_handle)
                                         .root_item(entry.is_root)
@@ -3248,17 +3250,22 @@ impl SettingsWindow {
                 .when(current_sub_page.link.in_json, |this| {
                     this.child(
                         div().flex_shrink_0().child(
-                            Button::new("open-in-settings-file", "Edit in settings.json")
-                                .tab_index(0_isize)
-                                .style(ButtonStyle::OutlinedGhost)
-                                .tooltip(Tooltip::for_action_title_in(
-                                    "Edit in settings.json",
-                                    &OpenCurrentFile,
-                                    &self.focus_handle,
-                                ))
-                                .on_click(cx.listener(|this, _, window, cx| {
+                            Button::new(
+                                "open-in-settings-file",
+                                translate("Edit in settings.json", cx),
+                            )
+                            .tab_index(0_isize)
+                            .style(ButtonStyle::OutlinedGhost)
+                            .tooltip(Tooltip::for_action_title_in(
+                                translate("Edit in settings.json", cx),
+                                &OpenCurrentFile,
+                                &self.focus_handle,
+                            ))
+                            .on_click(cx.listener(
+                                |this, _, window, cx| {
                                     this.open_current_settings_file(window, cx);
-                                })),
+                                },
+                            )),
                         ),
                     )
                 })

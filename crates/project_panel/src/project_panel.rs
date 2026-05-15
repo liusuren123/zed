@@ -58,6 +58,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+use theme::translate;
 use theme_settings::ThemeSettings;
 use ui::{
     Color, ContextMenu, ContextMenuEntry, DecoratedIcon, Divider, Icon, IconDecoration,
@@ -869,12 +870,12 @@ impl ProjectPanel {
                                     true,
                                     window, cx,
                                 )
-                                .detach_and_prompt_err("Failed to open file", window, cx, move |e, _, _| {
+                                .detach_and_prompt_err("Failed to open file", window, cx, move |e, _, cx| {
                                     match e.error_code() {
                                         ErrorCode::Disconnected => if is_via_ssh {
-                                            Some("Disconnected from SSH host".to_string())
+                                            Some(translate("Disconnected from SSH host", cx).to_string())
                                         } else {
-                                            Some("Disconnected from remote project".to_string())
+                                            Some(translate("Disconnected from remote project", cx).to_string())
                                         },
                                         ErrorCode::UnsharedItem => Some(format!(
                                             "{} is not shared by the host. This could be because it has been marked as `private`",
@@ -1077,11 +1078,14 @@ impl ProjectPanel {
                 menu.context(self.focus_handle.clone()).map(|menu| {
                     if is_read_only {
                         menu.when(is_dir, |menu| {
-                            menu.action("Search Inside", Box::new(NewSearchInDirectory))
+                            menu.action(
+                                translate("Search Inside", cx),
+                                Box::new(NewSearchInDirectory),
+                            )
                         })
                     } else {
-                        menu.action("New File", Box::new(NewFile))
-                            .action("New Folder", Box::new(NewDirectory))
+                        menu.action(translate("New File", cx), Box::new(NewFile))
+                            .action(translate("New Folder", cx), Box::new(NewDirectory))
                             .separator()
                             .when(is_local, |menu| {
                                 menu.action(
@@ -1090,91 +1094,130 @@ impl ProjectPanel {
                                 )
                             })
                             .when(is_local, |menu| {
-                                menu.action("Open in Default App", Box::new(OpenWithSystem))
+                                menu.action(
+                                    translate("Open in Default App", cx),
+                                    Box::new(OpenWithSystem),
+                                )
                             })
-                            .action("Open in Terminal", Box::new(OpenInTerminal))
+                            .action(translate("Open in Terminal", cx), Box::new(OpenInTerminal))
                             .when(is_dir, |menu| {
-                                menu.separator()
-                                    .action("Find in Folder…", Box::new(NewSearchInDirectory))
+                                menu.separator().action(
+                                    translate("Find in Folder…", cx),
+                                    Box::new(NewSearchInDirectory),
+                                )
                             })
                             .when(is_unfoldable, |menu| {
-                                menu.action("Unfold Directory", Box::new(UnfoldDirectory))
+                                menu.action(
+                                    translate("Unfold Directory", cx),
+                                    Box::new(UnfoldDirectory),
+                                )
                             })
                             .when(is_foldable, |menu| {
-                                menu.action("Fold Directory", Box::new(FoldDirectory))
+                                menu.action(
+                                    translate("Fold Directory", cx),
+                                    Box::new(FoldDirectory),
+                                )
                             })
                             .when(should_show_compare, |menu| {
-                                menu.separator()
-                                    .action("Compare Marked Files", Box::new(CompareMarkedFiles))
+                                menu.separator().action(
+                                    translate("Compare Marked Files", cx),
+                                    Box::new(CompareMarkedFiles),
+                                )
                             })
                             .separator()
-                            .action("Cut", Box::new(Cut))
-                            .action("Copy", Box::new(Copy))
-                            .action("Duplicate", Box::new(Duplicate))
+                            .action(translate("Cut", cx), Box::new(Cut))
+                            .action(translate("Copy", cx), Box::new(Copy))
+                            .action(translate("Duplicate", cx), Box::new(Duplicate))
                             // TODO: Paste should always be visible, cbut disabled when clipboard is empty
-                            .action_disabled_when(!has_pasteable_content, "Paste", Box::new(Paste))
+                            .action_disabled_when(
+                                !has_pasteable_content,
+                                translate("Paste", cx),
+                                Box::new(Paste),
+                            )
                             .when(cx.has_flag::<ProjectPanelUndoRedoFeatureFlag>(), |menu| {
                                 menu.action_disabled_when(
                                     !self.undo_manager.can_undo(),
-                                    "Undo",
+                                    translate("Undo", cx),
                                     Box::new(Undo),
                                 )
                                 .action_disabled_when(
                                     !self.undo_manager.can_redo(),
-                                    "Redo",
+                                    translate("Redo", cx),
                                     Box::new(Redo),
                                 )
                             })
                             .when(is_remote, |menu| {
-                                menu.separator()
-                                    .action("Download...", Box::new(DownloadFromRemote))
+                                menu.separator().action(
+                                    translate("Download...", cx),
+                                    Box::new(DownloadFromRemote),
+                                )
                             })
                             .separator()
-                            .action("Copy Path", Box::new(zed_actions::workspace::CopyPath))
                             .action(
-                                "Copy Relative Path",
+                                translate("Copy Path", cx),
+                                Box::new(zed_actions::workspace::CopyPath),
+                            )
+                            .action(
+                                translate("Copy Relative Path", cx),
                                 Box::new(zed_actions::workspace::CopyRelativePath),
                             )
                             .when(has_git_repo, |menu| {
                                 menu.separator()
                                     .when(!is_dir && self.has_git_changes(entry_id), |menu| {
                                         menu.action(
-                                            "Restore File",
+                                            translate("Restore File", cx),
                                             Box::new(git::RestoreFile { skip_prompt: false }),
                                         )
                                     })
-                                    .action("Add to .gitignore", Box::new(git::AddToGitignore))
+                                    .action(
+                                        translate("Add to .gitignore", cx),
+                                        Box::new(git::AddToGitignore),
+                                    )
                                     .when(has_history, |menu| {
-                                        menu.action("View History", Box::new(git::FileHistory))
+                                        menu.action(
+                                            translate("View History", cx),
+                                            Box::new(git::FileHistory),
+                                        )
                                     })
                             })
                             .when(!should_hide_rename, |menu| {
-                                menu.separator().action("Rename", Box::new(Rename))
+                                menu.separator()
+                                    .action(translate("Rename", cx), Box::new(Rename))
                             })
                             .when(!is_root && !is_remote, |menu| {
-                                menu.action("Trash", Box::new(Trash { skip_prompt: false }))
+                                menu.action(
+                                    translate("Trash", cx),
+                                    Box::new(Trash { skip_prompt: false }),
+                                )
                             })
                             .when(!is_root, |menu| {
-                                menu.action("Delete", Box::new(Delete { skip_prompt: false }))
+                                menu.action(
+                                    translate("Delete", cx),
+                                    Box::new(Delete { skip_prompt: false }),
+                                )
                             })
                             .when(!is_collab && is_root, |menu| {
                                 menu.separator()
                                     .action(
-                                        "Add Folders to Project…",
+                                        translate("Add Folders to Project…", cx),
                                         Box::new(workspace::AddFolderToProject),
                                     )
-                                    .action("Remove from Project", Box::new(RemoveFromProject))
+                                    .action(
+                                        translate("Remove from Project", cx),
+                                        Box::new(RemoveFromProject),
+                                    )
                             })
                             .when(is_dir && !is_root, |menu| {
                                 menu.separator().action(
-                                    "Collapse All",
+                                    translate("Collapse All", cx),
                                     Box::new(CollapseSelectedEntryAndChildren),
                                 )
                             })
                             .when(is_dir && is_root, |menu| {
                                 let entity = entity.clone();
+                                let collapse_all_label = translate("Collapse All", cx);
                                 menu.separator().item(
-                                    ContextMenuEntry::new("Collapse All").handler(
+                                    ContextMenuEntry::new(collapse_all_label).handler(
                                         move |window, cx| {
                                             entity.update(cx, |this, cx| {
                                                 this.collapse_all_for_root(window, cx);
@@ -2345,12 +2388,15 @@ impl ProjectPanel {
                 return None;
             }
             let answer = if !skip_prompt {
-                let operation = if trash { "Trash" } else { "Delete" };
-                let message_start = if trash {
-                    "Do you want to trash"
-                } else {
-                    "Are you sure you want to permanently delete"
-                };
+                let operation = translate(if trash { "Trash" } else { "Delete" }, cx);
+                let message_start = translate(
+                    if trash {
+                        "Do you want to trash"
+                    } else {
+                        "Are you sure you want to permanently delete"
+                    },
+                    cx,
+                );
                 let prompt = match file_paths.first() {
                     Some((_, _, path)) if file_paths.len() == 1 => {
                         let unsaved_warning = if dirty_buffers > 0 {
@@ -2403,12 +2449,13 @@ impl ProjectPanel {
                         )
                     }
                 };
-                let detail = (!trash).then_some("This cannot be undone.");
+                let detail_translated = (!trash).then_some(translate("This cannot be undone.", cx));
+                let detail = detail_translated.as_deref();
                 Some(window.prompt(
                     PromptLevel::Info,
                     &prompt,
                     detail,
-                    &[operation, "Cancel"],
+                    &[operation.as_ref(), "Cancel"],
                     cx,
                 ))
             } else {

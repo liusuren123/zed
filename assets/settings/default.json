@@ -12,6 +12,9 @@
     "dark": "One Dark",
   },
   "icon_theme": "Zed (Default)",
+  // The language to use for the Zed user interface.
+  // Possible values: "english", "chinese_simplified"
+  "ui_language": "english",
   // The name of a base set of key bindings to use.
   // This setting can take six values, each named after another
   // text editor:

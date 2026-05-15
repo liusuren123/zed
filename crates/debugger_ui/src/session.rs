@@ -8,6 +8,7 @@ use project::debugger::session::Session;
 use project::{Project, debugger::session::SessionQuirks};
 use rpc::proto;
 use running::RunningState;
+use theme::translate;
 use ui::prelude::*;
 use workspace::{
     CollaboratorId, FollowableItem, ViewId, Workspace,
@@ -100,8 +101,8 @@ impl Focusable for DebugSession {
 
 impl Item for DebugSession {
     type Event = ();
-    fn tab_content_text(&self, _detail: usize, _cx: &App) -> SharedString {
-        "Debugger".into()
+    fn tab_content_text(&self, _detail: usize, cx: &App) -> SharedString {
+        translate("Debugger", cx)
     }
 }
 

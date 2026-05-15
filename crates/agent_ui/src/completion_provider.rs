@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use crate::DEFAULT_THREAD_TITLE;
+use theme::translate;
 use crate::thread_metadata_store::{ThreadMetadata, ThreadMetadataStore};
 use acp_thread::MentionUri;
 use agent_client_protocol::schema as acp;
@@ -285,10 +286,10 @@ pub struct EntryMatch {
     entry: PromptContextEntry,
 }
 
-fn session_title(title: Option<SharedString>) -> SharedString {
+fn session_title(title: Option<SharedString>, cx: &App) -> SharedString {
     title
         .filter(|title| !title.is_empty())
-        .unwrap_or_else(|| SharedString::new_static(DEFAULT_THREAD_TITLE))
+        .unwrap_or_else(|| translate(DEFAULT_THREAD_TITLE, cx))
 }
 
 #[derive(Debug, Clone)]
@@ -385,7 +386,7 @@ impl<T: PromptCompletionProviderDelegate> PromptCompletionProvider<T> {
         workspace: Entity<Workspace>,
         cx: &mut App,
     ) -> Completion {
-        let title = session_title(title);
+        let title = session_title(title, cx);
         let uri = MentionUri::Thread {
             id: session_id,
             name: title.to_string(),
@@ -2007,7 +2008,7 @@ fn collect_session_matches(cx: &App) -> Vec<SessionMatch> {
             let info = acp_thread::AgentSessionInfo::from(metadata);
             SessionMatch {
                 session_id: info.session_id,
-                title: session_title(info.title),
+                title: session_title(info.title, cx),
             }
         })
         .collect()

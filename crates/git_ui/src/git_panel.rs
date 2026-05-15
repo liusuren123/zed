@@ -39,7 +39,7 @@ use git::{
 use gpui::{
     AbsoluteLength, Action, Anchor, AsyncApp, AsyncWindowContext, Bounds, ClickEvent, DismissEvent,
     Empty, Entity, EventEmitter, FocusHandle, Focusable, KeyContext, MouseButton, MouseDownEvent,
-    Point, PromptLevel, ScrollStrategy, Subscription, Task, TaskExt, TextStyle,
+    Point, PromptButton, PromptLevel, ScrollStrategy, Subscription, Task, TaskExt, TextStyle,
     UniformListScrollHandle, WeakEntity, actions, anchored, deferred, point, size, uniform_list,
 };
 use itertools::Itertools;
@@ -68,6 +68,7 @@ use std::ops::Range;
 use std::path::Path;
 use std::{sync::Arc, time::Duration, usize};
 use strum::{IntoEnumIterator, VariantNames};
+use theme::translate;
 use theme_settings::ThemeSettings;
 use time::OffsetDateTime;
 use ui::{
@@ -179,46 +180,58 @@ fn git_panel_context_menu(
     window: &mut Window,
     cx: &mut App,
 ) -> Entity<ContextMenu> {
+    let stage_all = translate("Stage All", cx);
+    let unstage_all = translate("Unstage All", cx);
+    let stash_all = translate("Stash All", cx);
+    let stash_pop = translate("Stash Pop", cx);
+    let view_stash = translate("View Stash", cx);
+    let open_diff = translate("Open Diff", cx);
+    let discard_tracked_changes = translate("Discard Tracked Changes", cx);
+    let trash_untracked_files = translate("Trash Untracked Files", cx);
+    let flat_view = translate("Flat View", cx);
+    let tree_view = translate("Tree View", cx);
+    let sort_by_status = translate("Sort by Status", cx);
+    let sort_by_path = translate("Sort by Path", cx);
     ContextMenu::build(window, cx, move |context_menu, _, _| {
         context_menu
             .context(focus_handle)
             .action_disabled_when(
                 !state.has_unstaged_changes,
-                "Stage All",
+                stage_all,
                 StageAll.boxed_clone(),
             )
             .action_disabled_when(
                 !state.has_staged_changes,
-                "Unstage All",
+                unstage_all,
                 UnstageAll.boxed_clone(),
             )
             .separator()
             .action_disabled_when(
                 !(state.has_new_changes || state.has_tracked_changes),
-                "Stash All",
+                stash_all,
                 StashAll.boxed_clone(),
             )
-            .action_disabled_when(!state.has_stash_items, "Stash Pop", StashPop.boxed_clone())
-            .action("View Stash", zed_actions::git::ViewStash.boxed_clone())
+            .action_disabled_when(!state.has_stash_items, stash_pop, StashPop.boxed_clone())
+            .action(view_stash, zed_actions::git::ViewStash.boxed_clone())
             .separator()
-            .action("Open Diff", project_diff::Diff.boxed_clone())
+            .action(open_diff, project_diff::Diff.boxed_clone())
             .separator()
             .action_disabled_when(
                 !state.has_tracked_changes,
-                "Discard Tracked Changes",
+                discard_tracked_changes,
                 RestoreTrackedFiles.boxed_clone(),
             )
             .action_disabled_when(
                 !state.has_new_changes,
-                "Trash Untracked Files",
+                trash_untracked_files,
                 TrashUntrackedFiles.boxed_clone(),
             )
             .separator()
             .entry(
                 if state.tree_view {
-                    "Flat View"
+                    flat_view.clone()
                 } else {
-                    "Tree View"
+                    tree_view.clone()
                 },
                 Some(Box::new(ToggleTreeView)),
                 move |window, cx| window.dispatch_action(Box::new(ToggleTreeView), cx),
@@ -226,9 +239,9 @@ fn git_panel_context_menu(
             .when(!state.tree_view, |this| {
                 this.entry(
                     if state.sort_by_path {
-                        "Sort by Status"
+                        sort_by_status.clone()
                     } else {
-                        "Sort by Path"
+                        sort_by_path.clone()
                     },
                     Some(Box::new(ToggleSortByPath)),
                     move |window, cx| window.dispatch_action(Box::new(ToggleSortByPath), cx),
@@ -719,7 +732,7 @@ pub(crate) fn commit_message_editor(
     commit_editor.set_use_modal_editing(true);
     commit_editor.set_show_wrap_guides(false, cx);
     commit_editor.set_show_indent_guides(false, cx);
-    let placeholder = placeholder.unwrap_or("Enter commit message".into());
+    let placeholder = placeholder.unwrap_or(translate("Enter commit message", cx));
     commit_editor.set_placeholder_text(&placeholder, window, cx);
     commit_editor
 }
@@ -1417,10 +1430,11 @@ impl GitPanel {
             let prompt = if skip_prompt {
                 Task::ready(Ok(0))
             } else {
+                let template = translate("Are you sure you want to discard changes to", cx);
                 let prompt = window.prompt(
                     PromptLevel::Warning,
                     &format!(
-                        "Are you sure you want to discard changes to {}?",
+                        "{template} {}?",
                         MarkdownInlineCode(
                             entry
                                 .repo_path
@@ -1429,7 +1443,10 @@ impl GitPanel {
                         ),
                     ),
                     None,
-                    &["Discard Changes", "Cancel"],
+                    &[
+                        PromptButton::new(translate("Discard Changes", cx)),
+                        PromptButton::cancel(translate("Cancel", cx)),
+                    ],
                     cx,
                 );
                 cx.background_spawn(prompt)
@@ -5266,7 +5283,7 @@ impl GitPanel {
             .border_1()
             .border_r_2()
             .child(
-                Label::new(header.title())
+                Label::new(translate(header.title(), cx))
                     .color(Color::Muted)
                     .size(LabelSize::Small),
             )

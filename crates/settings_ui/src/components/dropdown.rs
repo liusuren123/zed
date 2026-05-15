@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use gpui::{App, ElementId, IntoElement, RenderOnce};
 use heck::ToTitleCase as _;
+use theme::translate;
 use ui::{
     ButtonSize, ContextMenu, DropdownMenu, DropdownStyle, FluentBuilder as _, IconPosition, px,
 };
@@ -58,23 +59,46 @@ where
     T: strum::VariantArray + strum::VariantNames + Copy + PartialEq + Send + Sync + 'static,
 {
     fn render(self, window: &mut ui::Window, cx: &mut ui::App) -> impl gpui::IntoElement {
+        // Pre-translate all labels so they can be used inside the context menu closure.
+        let display_labels: Vec<String> = self
+            .labels
+            .iter()
+            .map(|&label| {
+                let translated = translate(label, cx);
+                if translated.as_ref() != label {
+                    translated.to_string()
+                } else if self.should_do_title_case {
+                    label.to_title_case()
+                } else {
+                    label.to_string()
+                }
+            })
+            .collect();
+
         let current_value_label = self.labels[self
             .variants
             .iter()
             .position(|v| *v == self.current_value)
             .unwrap()];
 
+        let current_display = {
+            let translated = translate(current_value_label, cx);
+            if translated.as_ref() != current_value_label {
+                translated.to_string()
+            } else if self.should_do_title_case {
+                current_value_label.to_title_case()
+            } else {
+                current_value_label.to_string()
+            }
+        };
+
         let context_menu = window.use_keyed_state(current_value_label, cx, |window, cx| {
             ContextMenu::new(window, cx, move |mut menu, _, _| {
-                for (&value, &label) in std::iter::zip(self.variants, self.labels) {
+                for (&value, display_text) in std::iter::zip(self.variants, display_labels.iter()) {
                     let on_change = self.on_change.clone();
                     let current_value = self.current_value;
                     menu = menu.toggleable_entry(
-                        if self.should_do_title_case {
-                            label.to_title_case()
-                        } else {
-                            label.to_string()
-                        },
+                        display_text.clone(),
                         value == current_value,
                         IconPosition::End,
                         None,
@@ -87,22 +111,14 @@ where
             })
         });
 
-        DropdownMenu::new(
-            self.id,
-            if self.should_do_title_case {
-                current_value_label.to_title_case()
-            } else {
-                current_value_label.to_string()
-            },
-            context_menu,
-        )
-        .when_some(self.tab_index, |elem, tab_index| elem.tab_index(tab_index))
-        .trigger_size(ButtonSize::Medium)
-        .style(DropdownStyle::Outlined)
-        .offset(gpui::Point {
-            x: px(0.0),
-            y: px(2.0),
-        })
-        .into_any_element()
+        DropdownMenu::new(self.id, current_display, context_menu)
+            .when_some(self.tab_index, |elem, tab_index| elem.tab_index(tab_index))
+            .trigger_size(ButtonSize::Medium)
+            .style(DropdownStyle::Outlined)
+            .offset(gpui::Point {
+                x: px(0.0),
+                y: px(2.0),
+            })
+            .into_any_element()
     }
 }

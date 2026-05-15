@@ -1,8 +1,8 @@
 use agent::{AgentTool, TerminalTool, ToolPermissionDecision};
 use agent_settings::AgentSettings;
 use gpui::{
-    Focusable, HighlightStyle, ReadGlobal, ScrollHandle, StyledText, TextStyleRefinement, point,
-    prelude::*,
+    Focusable, HighlightStyle, ReadGlobal, ScrollHandle, SharedString, StyledText,
+    TextStyleRefinement, point, prelude::*,
 };
 use settings::{Settings as _, SettingsStore, ToolPermissionMode};
 use shell_command_parser::extract_commands;
@@ -13,6 +13,7 @@ use util::ResultExt as _;
 use util::shell::ShellKind;
 
 use crate::{SettingsWindow, components::SettingsInputField};
+use theme::translate;
 
 const HARDCODED_RULES_DESCRIPTION: &str =
     "`rm -rf` commands are always blocked when run on `$HOME`, `~`, `.`, `..`, or `/`";
@@ -189,7 +190,7 @@ pub(crate) fn render_tool_permissions_setup_page(
         .track_scroll(scroll_handle)
         .child(
             Banner::new().child(
-                Label::new(SETTINGS_DISCLAIMER)
+                Label::new(translate(SETTINGS_DISCLAIMER, cx))
                     .size(LabelSize::Small)
                     .color(Color::Muted)
                     .mt_0p5(),
@@ -197,7 +198,7 @@ pub(crate) fn render_tool_permissions_setup_page(
         )
         .child(
             v_flex()
-                .child(render_global_default_mode_section(global_default))
+                .child(render_global_default_mode_section(global_default, cx))
                 .child(Divider::horizontal())
                 .children(tool_items.into_iter().enumerate().flat_map(|(i, item)| {
                     let mut elements: Vec<AnyElement> = vec![item];
@@ -225,14 +226,16 @@ fn render_tool_list_item(
     let rule_summary = if rule_count > 0 || invalid_count > 0 {
         let mut parts = Vec::new();
         if rule_count > 0 {
-            if rule_count == 1 {
-                parts.push("1 rule".to_string());
+            let rule_word = if rule_count == 1 {
+                translate("rule", cx)
             } else {
-                parts.push(format!("{} rules", rule_count));
-            }
+                translate("rules", cx)
+            };
+            parts.push(format!("{} {rule_word}", rule_count));
         }
         if invalid_count > 0 {
-            parts.push(format!("{} invalid", invalid_count));
+            let invalid_word = translate("invalid", cx);
+            parts.push(format!("{} {invalid_word}", invalid_count));
         }
         Some(parts.join(", "))
     } else {
@@ -250,25 +253,27 @@ fn render_tool_list_item(
             v_flex()
                 .w_full()
                 .min_w_0()
-                .child(h_flex().gap_1().child(Label::new(tool.name)).when_some(
-                    rule_summary,
-                    |this, summary| {
-                        this.child(
-                            Label::new(summary)
-                                .size(LabelSize::Small)
-                                .color(Color::Muted),
-                        )
-                    },
-                ))
                 .child(
-                    Label::new(tool.description)
+                    h_flex()
+                        .gap_1()
+                        .child(Label::new(translate(tool.name, cx)))
+                        .when_some(rule_summary, |this, summary| {
+                            this.child(
+                                Label::new(summary)
+                                    .size(LabelSize::Small)
+                                    .color(Color::Muted),
+                            )
+                        }),
+                )
+                .child(
+                    Label::new(translate(tool.description, cx))
                         .size(LabelSize::Small)
                         .color(Color::Muted),
                 ),
         )
         .child({
             let tool_name = tool.name;
-            Button::new(format!("configure-{}", tool.id), "Configure")
+            Button::new(format!("configure-{}", tool.id), translate("Configure", cx))
                 .tab_index(tool_index as isize)
                 .style(ButtonStyle::OutlinedGhost)
                 .size(ButtonSize::Medium)
@@ -317,7 +322,9 @@ pub(crate) fn render_tool_config_page(
     cx: &mut Context<SettingsWindow>,
 ) -> AnyElement {
     let rules = get_tool_rules(tool.id, cx);
-    let page_title = format!("{} Tool", tool.name);
+    let tool_name = translate(tool.name, cx);
+    let tool_label = translate("Tool", cx);
+    let page_title = format!("{tool_name} {tool_label}");
     let scroll_step = px(80.);
 
     v_flex()
@@ -350,7 +357,7 @@ pub(crate) fn render_tool_config_page(
                 .min_w_0()
                 .child(Label::new(page_title).size(LabelSize::Large))
                 .child(
-                    Label::new(tool.regex_explanation)
+                    Label::new(translate(tool.regex_explanation, cx))
                         .size(LabelSize::Small)
                         .color(Color::Muted),
                 ),
@@ -367,7 +374,7 @@ pub(crate) fn render_tool_config_page(
                         .severity(Severity::Warning)
                         .child(Label::new(error).size(LabelSize::Small))
                         .action_slot(
-                            Button::new("dismiss-regex-error", "Dismiss")
+                            Button::new("dismiss-regex-error", translate("Dismiss", cx))
                                 .style(ButtonStyle::Tinted(ui::TintColor::Warning))
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.regex_validation_error = None;
@@ -387,8 +394,8 @@ pub(crate) fn render_tool_config_page(
                 .child(Divider::horizontal().color(ui::DividerColor::BorderFaded))
                 .child(render_rule_section(
                     tool.id,
-                    "Always Deny",
-                    "If any of these regexes match, the tool action will be denied.",
+                    translate("Always Deny", cx),
+                    translate("If any of these regexes match, the tool action will be denied.", cx),
                     ToolPermissionMode::Deny,
                     &rules.always_deny,
                     cx,
@@ -396,8 +403,8 @@ pub(crate) fn render_tool_config_page(
                 .child(Divider::horizontal().color(ui::DividerColor::BorderFaded))
                 .child(render_rule_section(
                     tool.id,
-                    "Always Allow",
-                    "If any of these regexes match, the action will be approved—unless an Always Confirm or Always Deny matches.",
+                    translate("Always Allow", cx),
+                    translate("If any of these regexes match, the action will be approved\u{2014}unless an Always Confirm or Always Deny matches.", cx),
                     ToolPermissionMode::Allow,
                     &rules.always_allow,
                     cx,
@@ -405,8 +412,8 @@ pub(crate) fn render_tool_config_page(
                 .child(Divider::horizontal().color(ui::DividerColor::BorderFaded))
                 .child(render_rule_section(
                     tool.id,
-                    "Always Confirm",
-                    "If any of these regexes match, a confirmation will be shown unless an Always Deny regex matches.",
+                    translate("Always Confirm", cx),
+                    translate("If any of these regexes match, a confirmation will be shown unless an Always Deny regex matches.", cx),
                     ToolPermissionMode::Confirm,
                     &rules.always_confirm,
                     cx,
@@ -433,7 +440,10 @@ fn render_hardcoded_rules(smaller_font_size: bool, cx: &App) -> AnyElement {
             }
         })
         .text_color(cx.theme().colors().text_muted)
-        .child(render_inline_code_markdown(HARDCODED_RULES_DESCRIPTION, cx))
+        .child(render_inline_code_markdown(
+            &translate(HARDCODED_RULES_DESCRIPTION, cx),
+            cx,
+        ))
         .into_any_element()
 }
 
@@ -453,7 +463,11 @@ fn render_verification_section(
 
     let editor = window.use_keyed_state(input_id, cx, |window, cx| {
         let mut editor = editor::Editor::single_line(window, cx);
-        editor.set_placeholder_text("Enter a tool input to test your rules…", window, cx);
+        editor.set_placeholder_text(
+            &translate("Enter a tool input to test your rules…", cx),
+            window,
+            cx,
+        );
 
         let global_settings = ThemeSettings::get_global(cx);
         editor.set_text_style_refinement(TextStyleRefinement {
@@ -528,7 +542,7 @@ fn render_verification_section(
                 .border_color(color.border_variant)
                 .rounded_sm()
                 .child(
-                    Label::new("Test Your Rules")
+                    Label::new(translate("Test Your Rules", cx))
                         .color(Color::Muted)
                         .size(LabelSize::Small),
                 )
@@ -548,7 +562,7 @@ fn render_verification_section(
                     this.when(patterns_agree, |this| {
                         if matched_patterns.is_empty() {
                             this.child(
-                                Label::new("No regex matches, using the default action.")
+                                Label::new(translate("No regex matches, using the default action.", cx))
                                     .size(LabelSize::Small)
                                     .color(Color::Muted),
                             )
@@ -561,15 +575,13 @@ fn render_verification_section(
                             this.child(render_hardcoded_rules(true, cx))
                         } else if let Some(reason) = &denial_reason {
                             this.child(
-                                Label::new(format!("Denied: {}", reason))
+                                Label::new(format!("{}{}", translate("Denied: ", cx), reason))
                                     .size(LabelSize::XSmall)
                                     .color(Color::Warning),
                             )
                         } else {
                             this.child(
-                                Label::new(
-                                    "Pattern preview differs from engine — showing authoritative result.",
-                                )
+                                Label::new(translate("Pattern preview differs from engine — showing authoritative result.", cx))
                                 .size(LabelSize::XSmall)
                                 .color(Color::Warning),
                             )
@@ -578,12 +590,12 @@ fn render_verification_section(
                     .when(is_hardcoded_denial && patterns_agree, |this| {
                         this.child(render_hardcoded_rules(true, cx))
                     })
-                    .child(render_verdict_label(mode))
+                    .child(render_verdict_label(mode, cx))
                     .when_some(
                         denial_reason.filter(|_| patterns_agree && !is_hardcoded_denial),
                         |this, reason| {
                             this.child(
-                                Label::new(format!("Reason: {}", reason))
+                                Label::new(format!("{}{}", translate("Reason: ", cx), reason))
                                     .size(LabelSize::XSmall)
                                     .color(Color::Error),
                             )
@@ -677,9 +689,9 @@ fn render_matched_patterns(patterns: &[MatchedPattern], cx: &App) -> AnyElement 
         .gap_1()
         .children(patterns.iter().map(|pattern| {
             let (type_label, color) = match pattern.rule_type {
-                ToolPermissionMode::Deny => ("Always Deny", Color::Error),
-                ToolPermissionMode::Confirm => ("Always Confirm", Color::Warning),
-                ToolPermissionMode::Allow => ("Always Allow", Color::Success),
+                ToolPermissionMode::Deny => (translate("Always Deny", cx), Color::Error),
+                ToolPermissionMode::Confirm => (translate("Always Confirm", cx), Color::Warning),
+                ToolPermissionMode::Allow => (translate("Always Allow", cx), Color::Success),
             };
 
             let type_color = if pattern.is_overridden {
@@ -776,16 +788,16 @@ fn verdict_color(mode: ToolPermissionMode) -> Color {
     }
 }
 
-fn render_verdict_label(mode: ToolPermissionMode) -> AnyElement {
+fn render_verdict_label(mode: ToolPermissionMode, cx: &App) -> AnyElement {
     h_flex()
         .gap_1()
         .child(
-            Label::new("Result:")
+            Label::new(translate("Result:", cx))
                 .size(LabelSize::Small)
                 .color(Color::Muted),
         )
         .child(
-            Label::new(mode_display_label(mode))
+            Label::new(translate(mode_display_label(mode), cx))
                 .size(LabelSize::Small)
                 .color(verdict_color(mode)),
         )
@@ -810,13 +822,10 @@ fn render_invalid_patterns_section(
                         .size(IconSize::Small)
                         .color(Color::Error),
                 )
-                .child(Label::new("Invalid Patterns").color(Color::Error)),
+                .child(Label::new(translate("Invalid Patterns", cx)).color(Color::Error)),
         )
         .child(
-            Label::new(
-                "These patterns failed to compile as regular expressions. \
-                 The tool will be blocked until they are fixed or removed.",
-            )
+            Label::new(translate("These patterns failed to compile as regular expressions. The tool will be blocked until they are fixed or removed.", cx))
             .size(LabelSize::Small)
             .color(Color::Muted),
         )
@@ -827,10 +836,10 @@ fn render_invalid_patterns_section(
                 .gap_1p5()
                 .children(invalid_patterns.iter().map(|invalid| {
                     let rule_type_label = match invalid.rule_type.as_str() {
-                        "always_allow" => "Always Allow",
-                        "always_deny" => "Always Deny",
-                        "always_confirm" => "Always Confirm",
-                        other => other,
+                        "always_allow" => translate("Always Allow", cx),
+                        "always_deny" => translate("Always Deny", cx),
+                        "always_confirm" => translate("Always Confirm", cx),
+                        other => SharedString::from(other),
                     };
 
                     let pattern_for_delete = invalid.pattern.clone();
@@ -873,7 +882,7 @@ fn render_invalid_patterns_section(
                                     IconButton::new(delete_id, IconName::Trash)
                                         .icon_size(IconSize::Small)
                                         .icon_color(Color::Muted)
-                                        .tooltip(Tooltip::text("Delete Invalid Pattern"))
+                                        .tooltip(Tooltip::text(translate("Delete Invalid Pattern", cx)))
                                         .on_click(cx.listener(move |_, _, _, cx| {
                                             delete_pattern(
                                                 &tool_id_for_delete,
@@ -885,7 +894,7 @@ fn render_invalid_patterns_section(
                                 ),
                         )
                         .child(
-                            Label::new(format!("Error: {}", invalid.error))
+                            Label::new(format!("{}{}", translate("Error: ", cx), invalid.error))
                                 .size(LabelSize::XSmall)
                                 .color(Color::Muted),
                         )
@@ -896,8 +905,8 @@ fn render_invalid_patterns_section(
 
 fn render_rule_section(
     tool_id: &'static str,
-    title: &'static str,
-    description: &'static str,
+    title: SharedString,
+    description: SharedString,
     rule_type: ToolPermissionMode,
     patterns: &[String],
     cx: &mut Context<SettingsWindow>,
@@ -948,7 +957,7 @@ fn render_pattern_empty_state(cx: &mut Context<SettingsWindow>) -> AnyElement {
         .border_dashed()
         .border_color(cx.theme().colors().border_variant)
         .child(
-            Label::new("No patterns configured")
+            Label::new(translate("No patterns configured", cx))
                 .size(LabelSize::Small)
                 .color(Color::Disabled),
         )
@@ -980,7 +989,7 @@ fn render_user_pattern_row(
             IconButton::new(delete_id, IconName::Trash)
                 .icon_size(IconSize::Small)
                 .icon_color(Color::Muted)
-                .tooltip(Tooltip::text("Delete Pattern"))
+                .tooltip(Tooltip::text(translate("Delete Pattern", cx)))
                 .on_click(cx.listener(move |_, _, _, cx| {
                     delete_pattern(&tool_id_for_delete, rule_type, &pattern_for_delete, cx);
                 })),
@@ -999,13 +1008,15 @@ fn render_user_pattern_row(
 
                     let validation_error = if !updated {
                         Some(
-                            "A pattern with that name already exists in this rule list."
-                                .to_string(),
+                            translate("A pattern with that name already exists in this rule list.", cx).to_string(),
                         )
                     } else {
                         match regex::Regex::new(&new_pattern) {
                             Err(err) => Some(format!(
-                                "Invalid regex: {err}. Pattern saved but will block this tool until fixed or removed."
+                                "{}{}{}",
+                                translate("Invalid regex: ", cx),
+                                err,
+                                translate(". Pattern saved but will block this tool until fixed or removed.", cx),
                             )),
                             Ok(_) => None,
                         }
@@ -1033,7 +1044,7 @@ fn render_add_pattern_input(
 
     SettingsInputField::new()
         .with_id(input_id)
-        .with_placeholder("Add regex pattern…")
+        .with_placeholder(translate("Add regex pattern…", cx))
         .tab_index(0)
         .with_buffer_font()
         .display_clear_button()
@@ -1047,7 +1058,13 @@ fn render_add_pattern_input(
 
                     let validation_error = match regex::Regex::new(&trimmed) {
                         Err(err) => Some(format!(
-                            "Invalid regex: {err}. Pattern saved but will block this tool until fixed or removed."
+                            "{}{}{}",
+                            translate("Invalid regex: ", cx),
+                            err,
+                            translate(
+                                ". Pattern saved but will block this tool until fixed or removed.",
+                                cx
+                            ),
                         )),
                         Ok(_) => None,
                     };
@@ -1063,7 +1080,7 @@ fn render_add_pattern_input(
         .into_any_element()
 }
 
-fn render_global_default_mode_section(current_mode: ToolPermissionMode) -> AnyElement {
+fn render_global_default_mode_section(current_mode: ToolPermissionMode, cx: &App) -> AnyElement {
     let mode_label = current_mode.to_string();
 
     h_flex()
@@ -1074,11 +1091,9 @@ fn render_global_default_mode_section(current_mode: ToolPermissionMode) -> AnyEl
             v_flex()
                 .w_full()
                 .min_w_0()
-                .child(Label::new("Default Permission"))
+                .child(Label::new(translate("Default Permission", cx)))
                 .child(
-                    Label::new(
-                        "Controls the default behavior for all tool actions. Per-tool rules and patterns can override this.",
-                    )
+                    Label::new(translate("Controls the default behavior for all tool actions. Per-tool rules and patterns can override this.", cx))
                     .size(LabelSize::Small)
                     .color(Color::Muted),
                 ),
@@ -1130,9 +1145,9 @@ fn render_default_mode_section(
             v_flex()
                 .w_full()
                 .min_w_0()
-                .child(Label::new("Default Action"))
+                .child(Label::new(translate("Default Action", _cx)))
                 .child(
-                    Label::new("Action to take when no patterns match.")
+                    Label::new(translate("Action to take when no patterns match.", _cx))
                         .size(LabelSize::Small)
                         .color(Color::Muted),
                 ),

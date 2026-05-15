@@ -12,7 +12,7 @@ use project::{AgentRegistryStore, RegistryAgent};
 use settings::{
     BaseKeymap, CustomAgentServerSettings, Settings, SettingsStore, update_settings_file,
 };
-use theme::{Appearance, SystemAppearance, ThemeRegistry};
+use theme::{Appearance, SystemAppearance, ThemeRegistry, translate};
 use theme_settings::{ThemeAppearanceMode, ThemeName, ThemeSelection, ThemeSettings};
 use ui::{
     AgentSetupButton, Divider, StatefulInteractiveElement, SwitchField, TintColor,
@@ -636,7 +636,7 @@ fn render_zed_agent_button(user_store: &Entity<UserStore>, cx: &mut App) -> impl
                 .size(IconSize::XSmall)
                 .color(Color::Muted),
         )
-        .name("Zed Agent")
+        .name(translate("Zed Agent", cx))
         .state(state_element)
         .disabled(is_trial || is_pro)
         .map(|this| {

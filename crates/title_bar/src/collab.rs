@@ -15,7 +15,7 @@ use project::WorktreeSettings;
 use remote_connection::RemoteConnectionModal;
 use rpc::proto::{self};
 use settings::{Settings as _, SettingsLocation};
-use theme::ActiveTheme;
+use theme::{ActiveTheme, translate};
 use ui::{
     Avatar, AvatarAudioStatusIndicator, ContextMenu, ContextMenuItem, Divider, DividerColor,
     Facepile, PopoverMenu, SplitButton, SplitButtonStyle, TintColor, Tooltip, prelude::*,
@@ -392,7 +392,7 @@ impl TitleBar {
                 .child(
                     IconButton::new("leave-call", IconName::Exit)
                         .style(ButtonStyle::Subtle)
-                        .tooltip(Tooltip::text("Leave Call"))
+                        .tooltip(Tooltip::text(translate("Leave Call", cx)))
                         .icon_size(IconSize::Small)
                         .on_click(move |_, _window, cx| {
                             ActiveCall::global(cx)
@@ -451,21 +451,26 @@ impl TitleBar {
             children.push(
                 Button::new(
                     "toggle_sharing",
-                    if is_shared { "Unshare" } else { "Share" },
+                    if is_shared {
+                        translate("Unshare", cx)
+                    } else {
+                        translate("Share", cx)
+                    },
                 )
                 .tooltip(Tooltip::text(if is_shared {
-                    "Stop sharing project with call participants"
+                    translate("Stop sharing project with call participants", cx)
                 } else {
-                    "Share project with call participants"
+                    translate("Share project with call participants", cx)
                 }))
                 .style(ButtonStyle::Subtle)
                 .selected_style(ButtonStyle::Tinted(TintColor::Accent))
                 .toggle_state(is_shared)
                 .label_size(LabelSize::Small)
                 .when(is_sharing_disabled, |parent| {
-                    parent.disabled(true).tooltip(Tooltip::text(
+                    parent.disabled(true).tooltip(Tooltip::text(translate(
                         "This project may not be shared in a public channel.",
-                    ))
+                        cx,
+                    )))
                 })
                 .on_click(cx.listener(move |this, _, window, cx| {
                     if is_shared {
@@ -492,16 +497,16 @@ impl TitleBar {
                     if is_muted {
                         if is_deafened {
                             Tooltip::with_meta(
-                                "Unmute Microphone",
+                                translate("Unmute Microphone", cx),
                                 None,
-                                "Audio will be unmuted",
+                                translate("Audio will be unmuted", cx),
                                 cx,
                             )
                         } else {
-                            Tooltip::simple("Unmute Microphone", cx)
+                            Tooltip::simple(translate("Unmute Microphone", cx), cx)
                         }
                     } else {
-                        Tooltip::simple("Mute Microphone", cx)
+                        Tooltip::simple(translate("Mute Microphone", cx), cx)
                     }
                 })
                 .style(ButtonStyle::Subtle)
@@ -528,18 +533,28 @@ impl TitleBar {
             .toggle_state(is_deafened)
             .tooltip(move |_window, cx| {
                 if is_deafened {
-                    let label = "Unmute Audio";
+                    let label = translate("Unmute Audio", cx);
 
                     if !muted_by_user {
-                        Tooltip::with_meta(label, None, "Microphone will be unmuted", cx)
+                        Tooltip::with_meta(
+                            label,
+                            None,
+                            translate("Microphone will be unmuted", cx),
+                            cx,
+                        )
                     } else {
                         Tooltip::simple(label, cx)
                     }
                 } else {
-                    let label = "Mute Audio";
+                    let label = translate("Mute Audio", cx);
 
                     if !muted_by_user {
-                        Tooltip::with_meta(label, None, "Microphone will be muted", cx)
+                        Tooltip::with_meta(
+                            label,
+                            None,
+                            translate("Microphone will be muted", cx),
+                            cx,
+                        )
                     } else {
                         Tooltip::simple(label, cx)
                     }
@@ -560,11 +575,14 @@ impl TitleBar {
                 .icon_size(IconSize::Small)
                 .toggle_state(is_screen_sharing)
                 .selected_style(ButtonStyle::Tinted(TintColor::Accent))
-                .tooltip(Tooltip::text(if is_screen_sharing {
-                    "Stop Sharing Screen"
-                } else {
-                    "Share Screen"
-                }))
+                .tooltip(Tooltip::text(translate(
+                    if is_screen_sharing {
+                        "Stop Sharing Screen"
+                    } else {
+                        "Share Screen"
+                    },
+                    cx,
+                )))
                 .on_click(move |_, window, cx| {
                     let should_share = ActiveCall::global(cx)
                         .read(cx)

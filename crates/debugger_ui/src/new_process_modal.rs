@@ -22,6 +22,7 @@ use itertools::Itertools as _;
 use picker::{Picker, PickerDelegate, highlighted_match_with_paths::HighlightedMatch};
 use project::{DebugScenarioContext, Project, TaskContexts, TaskSourceKind, task_store::TaskStore};
 use task::{DebugScenario, RevealTarget, SharedTaskContext, VariableName, ZedDebugConfig};
+use theme::translate;
 use ui::{
     ContextMenu, DropdownMenu, IconWithIndicator, Indicator, KeyBinding, ListItem, ListItemSpacing,
     Switch, SwitchLabelPosition, ToggleButtonGroup, ToggleButtonSimple, ToggleState, Tooltip,
@@ -494,7 +495,7 @@ impl NewProcessModal {
             .debugger
             .as_ref()
             .map(|d| d.0.clone())
-            .unwrap_or_else(|| SELECT_DEBUGGER_LABEL.clone());
+            .unwrap_or_else(|| translate("Select Debugger", cx));
 
         DropdownMenu::new(
             "dap-adapter-picker",
@@ -530,8 +531,6 @@ impl NewProcessModal {
         })
     }
 }
-
-static SELECT_DEBUGGER_LABEL: SharedString = SharedString::new_static("Select Debugger");
 
 #[derive(Clone, Copy)]
 pub(crate) enum NewProcessMode {
@@ -633,7 +632,7 @@ impl Render for NewProcessModal {
                         "debugger-mode-buttons",
                         [
                             ToggleButtonSimple::new(
-                                NewProcessMode::Task.to_string(),
+                                translate("Run", cx),
                                 cx.listener(|this, _, window, cx| {
                                     this.mode = NewProcessMode::Task;
                                     this.mode_focus_handle(cx).focus(window, cx);
@@ -642,14 +641,14 @@ impl Render for NewProcessModal {
                             )
                             .tooltip(move |_, cx| {
                                 Tooltip::for_action_in(
-                                    "Run predefined task",
+                                    translate("Run predefined task", cx),
                                     &ActivateTaskTab,
                                     &task_focus_handle,
                                     cx,
                                 )
                             }),
                             ToggleButtonSimple::new(
-                                NewProcessMode::Debug.to_string(),
+                                translate("Debug", cx),
                                 cx.listener(|this, _, window, cx| {
                                     this.mode = NewProcessMode::Debug;
                                     this.mode_focus_handle(cx).focus(window, cx);
@@ -658,14 +657,14 @@ impl Render for NewProcessModal {
                             )
                             .tooltip(move |_, cx| {
                                 Tooltip::for_action_in(
-                                    "Start a predefined debug scenario",
+                                    translate("Start a predefined debug scenario", cx),
                                     &ActivateDebugTab,
                                     &debug_focus_handle,
                                     cx,
                                 )
                             }),
                             ToggleButtonSimple::new(
-                                NewProcessMode::Attach.to_string(),
+                                translate("Attach", cx),
                                 cx.listener(|this, _, window, cx| {
                                     this.mode = NewProcessMode::Attach;
 
@@ -683,14 +682,14 @@ impl Render for NewProcessModal {
                             )
                             .tooltip(move |_, cx| {
                                 Tooltip::for_action_in(
-                                    "Attach the debugger to a running process",
+                                    translate("Attach the debugger to a running process", cx),
                                     &ActivateAttachTab,
                                     &attach_focus_handle,
                                     cx,
                                 )
                             }),
                             ToggleButtonSimple::new(
-                                NewProcessMode::Launch.to_string(),
+                                translate("Launch", cx),
                                 cx.listener(|this, _, window, cx| {
                                     this.mode = NewProcessMode::Launch;
                                     this.mode_focus_handle(cx).focus(window, cx);
@@ -699,7 +698,7 @@ impl Render for NewProcessModal {
                             )
                             .tooltip(move |_, cx| {
                                 Tooltip::for_action_in(
-                                    "Launch a new process with a debugger",
+                                    translate("Launch a new process with a debugger", cx),
                                     &ActivateLaunchTab,
                                     &launch_focus_handle,
                                     cx,

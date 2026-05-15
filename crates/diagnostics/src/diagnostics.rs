@@ -39,7 +39,7 @@ use std::{
     time::Duration,
 };
 use text::{BufferId, OffsetRangeExt};
-use theme::ActiveTheme;
+use theme::{ActiveTheme, translate};
 use toolbar_controls::DiagnosticsToolbarEditor;
 pub use toolbar_controls::ToolbarControls;
 use ui::{Icon, IconName, Label, h_flex, prelude::*};
@@ -104,9 +104,9 @@ impl Render for ProjectDiagnosticsEditor {
         let child =
             if warning_count + self.summary.error_count == 0 && self.editor.read(cx).is_empty(cx) {
                 let label = if self.summary.warning_count == 0 {
-                    SharedString::new_static("No problems in workspace")
+                    translate("No problems in workspace", cx)
                 } else {
-                    SharedString::new_static("No errors in workspace")
+                    translate("No errors in workspace", cx)
                 };
                 v_flex()
                     .key_context("EmptyPane")
@@ -123,8 +123,9 @@ impl Render for ProjectDiagnosticsEditor {
                         } else {
                             ""
                         };
+                        let show = translate("Show", cx);
                         let label = format!(
-                            "Show {} warning{}",
+                            "{show} {} warning{}",
                             self.summary.warning_count, plural_suffix
                         );
                         this.child(
@@ -748,15 +749,15 @@ impl Item for ProjectDiagnosticsEditor {
             .update(cx, |editor, cx| editor.navigate(data, window, cx))
     }
 
-    fn tab_tooltip_text(&self, _: &App) -> Option<SharedString> {
-        Some("Project Diagnostics".into())
+    fn tab_tooltip_text(&self, cx: &App) -> Option<SharedString> {
+        Some(translate("Project Diagnostics", cx))
     }
 
-    fn tab_content_text(&self, _detail: usize, _: &App) -> SharedString {
-        "Diagnostics".into()
+    fn tab_content_text(&self, _detail: usize, cx: &App) -> SharedString {
+        translate("Diagnostics", cx)
     }
 
-    fn tab_content(&self, params: TabContentParams, _window: &Window, _: &App) -> AnyElement {
+    fn tab_content(&self, params: TabContentParams, _window: &Window, cx: &App) -> AnyElement {
         h_flex()
             .gap_1()
             .when(
@@ -766,7 +767,9 @@ impl Item for ProjectDiagnosticsEditor {
                         h_flex()
                             .gap_1()
                             .child(Icon::new(IconName::Check).color(Color::Success))
-                            .child(Label::new("No problems").color(params.text_color())),
+                            .child(
+                                Label::new(translate("No problems", cx)).color(params.text_color()),
+                            ),
                     )
                 },
             )

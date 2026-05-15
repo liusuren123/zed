@@ -12,6 +12,7 @@ use util::debug_panic;
 use std::sync::Arc;
 
 use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
+use theme::translate;
 use ui::{Context, Tooltip, prelude::*};
 use ui::{ListItem, ListItemSpacing};
 use workspace::{ModalView, Workspace};
@@ -33,7 +34,6 @@ pub(crate) enum ModalIntent {
 pub(crate) struct AttachModalDelegate {
     selected_index: usize,
     matches: Vec<StringMatch>,
-    placeholder_text: Arc<str>,
     pub(crate) intent: ModalIntent,
     workspace: WeakEntity<Workspace>,
     candidates: Arc<[Candidate]>,
@@ -51,7 +51,6 @@ impl AttachModalDelegate {
             intent,
             selected_index: 0,
             matches: Vec::default(),
-            placeholder_text: Arc::from("Select the process you want to attach the debugger to"),
         }
     }
 }
@@ -154,8 +153,8 @@ impl PickerDelegate for AttachModalDelegate {
         self.selected_index = ix;
     }
 
-    fn placeholder_text(&self, _window: &mut Window, _cx: &mut App) -> std::sync::Arc<str> {
-        self.placeholder_text.clone()
+    fn placeholder_text(&self, _window: &mut Window, cx: &mut App) -> std::sync::Arc<str> {
+        translate("Select the process you want to attach the debugger to", cx).into()
     }
 
     fn update_matches(

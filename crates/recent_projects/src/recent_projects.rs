@@ -36,6 +36,7 @@ use project::{Worktree, git_store::Repository};
 pub use remote_connections::RemoteSettings;
 pub use remote_servers::RemoteServerProjects;
 use settings::{Settings, WorktreeId};
+use theme::translate;
 use ui_input::ErasedEditor;
 use workspace::ProjectGroupKey;
 
@@ -895,7 +896,7 @@ impl PickerDelegate for RecentProjectsDelegate {
     type ListItem = AnyElement;
 
     fn placeholder_text(&self, _window: &mut Window, _cx: &mut App) -> Arc<str> {
-        "Search projects…".into()
+        translate("Search projects…", _cx).into()
     }
 
     fn render_editor(
@@ -1170,7 +1171,7 @@ impl PickerDelegate for RecentProjectsDelegate {
 
     fn no_matches_text(&self, _window: &mut Window, _cx: &mut App) -> Option<SharedString> {
         let text = if self.workspaces.is_empty() && self.open_folders.is_empty() {
-            "Recently opened projects will show up here".into()
+            translate("Recently opened projects will show up here", _cx).into()
         } else {
             "No matches".into()
         };
@@ -1607,7 +1608,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                                     .w_full()
                                     .gap_1()
                                     .justify_between()
-                                    .child(Label::new("Open Local Folders"))
+                                    .child(Label::new(translate("Open Local Folders", cx)))
                                     .child(KeyBinding::for_action_in(
                                         &workspace::Open {
                                             create_new_window: self.create_new_window,
@@ -1636,7 +1637,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                                     .w_full()
                                     .gap_1()
                                     .justify_between()
-                                    .child(Label::new("Open Remote Folder"))
+                                    .child(Label::new(translate("Open Remote Folder", cx)))
                                     .child(KeyBinding::for_action(
                                         &OpenRemote {
                                             from_existing_connection: false,
@@ -1826,7 +1827,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                                     let focus_handle = focus_handle.clone();
                                     let workspace_handle = workspace_handle.clone();
                                     let open_action = open_action.clone();
-                                    move |menu, _, _| {
+                                    move |menu, _, cx| {
                                         menu.context(focus_handle)
                                             .when(show_add_to_workspace, |menu| {
                                                 menu.action(
@@ -1836,7 +1837,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                                                 .separator()
                                             })
                                             .entry(
-                                                "Open Local Folders",
+                                                translate("Open Local Folders", cx),
                                                 Some(open_action.boxed_clone()),
                                                 {
                                                     let workspace_handle = workspace_handle.clone();
@@ -1851,7 +1852,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                                                 },
                                             )
                                             .action(
-                                                "Open Remote Folder",
+                                                translate("Open Remote Folder", cx),
                                                 OpenRemote {
                                                     from_existing_connection: false,
                                                     create_new_window: false,

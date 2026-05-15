@@ -35,7 +35,7 @@ pub use crate::settings::{
     observe_buffer_font_size_adjustment, reset_agent_buffer_font_size, reset_agent_ui_font_size,
     reset_buffer_font_size, reset_ui_font_size, set_icon_theme, set_mode, set_theme, setup_ui_font,
 };
-pub use theme::UiDensity;
+pub use theme::{GlobalUiLanguage, UiDensity, UiLanguage};
 
 struct ThemeSettingsProviderImpl;
 
@@ -81,32 +81,69 @@ pub fn init(themes_to_load: LoadThemes, cx: &mut App) {
     GlobalTheme::update_theme(cx, theme);
     GlobalTheme::update_icon_theme(cx, icon_theme);
 
-    let settings = ThemeSettings::get_global(cx);
-
-    let mut prev_buffer_font_size_settings = settings.buffer_font_size_settings();
-    let mut prev_ui_font_size_settings = settings.ui_font_size_settings();
-    let mut prev_agent_ui_font_size_settings = settings.agent_ui_font_size_settings();
-    let mut prev_agent_buffer_font_size_settings = settings.agent_buffer_font_size_settings();
-    let mut prev_theme_name = settings.theme.name(SystemAppearance::global(cx).0);
-    let mut prev_icon_theme_name = settings.icon_theme.name(SystemAppearance::global(cx).0);
-    let mut prev_theme_overrides = (
-        settings.experimental_theme_overrides.clone(),
-        settings.theme_overrides.clone(),
-    );
+    let (
+        initial_ui_language,
+        prev_buffer_font_size_settings,
+        prev_ui_font_size_settings,
+        prev_agent_ui_font_size_settings,
+        prev_agent_buffer_font_size_settings,
+        prev_theme_name,
+        prev_icon_theme_name,
+        prev_ui_language_init,
+        prev_theme_overrides,
+    ) = {
+        let settings = ThemeSettings::get_global(cx);
+        (
+            settings.ui_language,
+            settings.buffer_font_size_settings(),
+            settings.ui_font_size_settings(),
+            settings.agent_ui_font_size_settings(),
+            settings.agent_buffer_font_size_settings(),
+            settings.theme.name(SystemAppearance::global(cx).0),
+            settings.icon_theme.name(SystemAppearance::global(cx).0),
+            settings.ui_language,
+            (
+                settings.experimental_theme_overrides.clone(),
+                settings.theme_overrides.clone(),
+            ),
+        )
+    };
+    cx.set_global(GlobalUiLanguage(initial_ui_language));
+    let mut prev_buffer_font_size_settings = prev_buffer_font_size_settings;
+    let mut prev_ui_font_size_settings = prev_ui_font_size_settings;
+    let mut prev_agent_ui_font_size_settings = prev_agent_ui_font_size_settings;
+    let mut prev_agent_buffer_font_size_settings = prev_agent_buffer_font_size_settings;
+    let mut prev_theme_name = prev_theme_name;
+    let mut prev_icon_theme_name = prev_icon_theme_name;
+    let mut prev_ui_language = prev_ui_language_init;
+    let mut prev_theme_overrides = prev_theme_overrides;
 
     cx.observe_global::<SettingsStore>(move |cx| {
-        let settings = ThemeSettings::get_global(cx);
-
-        let buffer_font_size_settings = settings.buffer_font_size_settings();
-        let ui_font_size_settings = settings.ui_font_size_settings();
-        let agent_ui_font_size_settings = settings.agent_ui_font_size_settings();
-        let agent_buffer_font_size_settings = settings.agent_buffer_font_size_settings();
-        let theme_name = settings.theme.name(SystemAppearance::global(cx).0);
-        let icon_theme_name = settings.icon_theme.name(SystemAppearance::global(cx).0);
-        let theme_overrides = (
-            settings.experimental_theme_overrides.clone(),
-            settings.theme_overrides.clone(),
-        );
+        let (
+            buffer_font_size_settings,
+            ui_font_size_settings,
+            agent_ui_font_size_settings,
+            agent_buffer_font_size_settings,
+            theme_name,
+            icon_theme_name,
+            theme_overrides,
+            ui_language,
+        ) = {
+            let settings = ThemeSettings::get_global(cx);
+            (
+                settings.buffer_font_size_settings(),
+                settings.ui_font_size_settings(),
+                settings.agent_ui_font_size_settings(),
+                settings.agent_buffer_font_size_settings(),
+                settings.theme.name(SystemAppearance::global(cx).0),
+                settings.icon_theme.name(SystemAppearance::global(cx).0),
+                (
+                    settings.experimental_theme_overrides.clone(),
+                    settings.theme_overrides.clone(),
+                ),
+                settings.ui_language,
+            )
+        };
 
         if buffer_font_size_settings != prev_buffer_font_size_settings {
             prev_buffer_font_size_settings = buffer_font_size_settings;
@@ -137,6 +174,11 @@ pub fn init(themes_to_load: LoadThemes, cx: &mut App) {
         if icon_theme_name != prev_icon_theme_name {
             prev_icon_theme_name = icon_theme_name;
             reload_icon_theme(cx);
+        }
+
+        if ui_language != prev_ui_language {
+            prev_ui_language = ui_language;
+            cx.set_global(GlobalUiLanguage(ui_language));
         }
     })
     .detach();

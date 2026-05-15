@@ -30,7 +30,7 @@ use picker::{
 };
 use project::{AgentId, AgentServerStore};
 use settings::Settings as _;
-use theme::ActiveTheme;
+use theme::{ActiveTheme, translate};
 use ui::{
     AgentThreadStatus, Divider, KeyBinding, ListItem, ListItemSpacing, ListSubHeader, ScrollAxes,
     Scrollbars, Tab, ThreadItem, Tooltip, WithScrollbar, prelude::*,
@@ -297,6 +297,7 @@ impl ThreadsArchiveView {
         let mut items = Vec::with_capacity(sessions.len() + 5);
         let mut current_bucket: Option<TimeBucket> = None;
 
+        let default_thread_title = translate(DEFAULT_THREAD_TITLE, cx);
         for session in sessions {
             let highlight_positions = if !query.is_empty() {
                 match fuzzy_match_positions(
@@ -305,7 +306,7 @@ impl ThreadsArchiveView {
                         .title
                         .as_ref()
                         .map(|t| t.as_ref())
-                        .unwrap_or(DEFAULT_THREAD_TITLE),
+                        .unwrap_or(default_thread_title.as_ref())
                 ) {
                     Some(positions) => positions,
                     None => continue,
@@ -648,7 +649,7 @@ impl ThreadsArchiveView {
 
                 let archived_color = Color::Custom(cx.theme().colors().icon_muted.opacity(0.6));
 
-                let base = ThreadItem::new(id, thread.display_title())
+                let base = ThreadItem::new(id, thread.display_title_for_ui(cx))
                     .icon(icon)
                     .when(is_archived, |this| {
                         this.archived(true)
@@ -1267,14 +1268,11 @@ impl EventEmitter<DismissEvent> for ProjectPickerDelegate {}
 impl PickerDelegate for ProjectPickerDelegate {
     type ListItem = AnyElement;
 
-    fn placeholder_text(&self, _window: &mut Window, _cx: &mut App) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, cx: &mut App) -> Arc<str> {
         format!(
             "Associate the \"{}\" thread with...",
             self.thread
-                .title
-                .as_ref()
-                .map(|t| t.as_ref())
-                .unwrap_or(DEFAULT_THREAD_TITLE)
+                .title.clone().unwrap_or_else(|| translate(DEFAULT_THREAD_TITLE, cx))
         )
         .into()
     }

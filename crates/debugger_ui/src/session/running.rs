@@ -51,6 +51,7 @@ use task::{
     TaskContext, ZedDebugConfig, substitute_variables_in_str,
 };
 use terminal_view::TerminalView;
+use theme::translate;
 use ui::{
     FluentBuilder, IntoElement, Render, StatefulInteractiveElement, Tab, Tooltip, VisibleOnHover,
     VisualContext, prelude::*,
@@ -279,12 +280,22 @@ impl Item for SubView {
 
     /// This is used to serialize debugger pane layouts
     /// A SharedString gets converted to a enum and back during serialization/deserialization.
-    fn tab_content_text(&self, _detail: usize, _cx: &App) -> SharedString {
-        self.kind.to_shared_string()
+    fn tab_content_text(&self, _detail: usize, cx: &App) -> SharedString {
+        let key: &'static str = match self.kind {
+            DebuggerPaneItem::Console => "Console",
+            DebuggerPaneItem::Variables => "Variables",
+            DebuggerPaneItem::BreakpointList => "Breakpoints",
+            DebuggerPaneItem::Frames => "Frames",
+            DebuggerPaneItem::Modules => "Modules",
+            DebuggerPaneItem::LoadedSources => "Sources",
+            DebuggerPaneItem::Terminal => "Terminal",
+            DebuggerPaneItem::MemoryView => "Memory View",
+        };
+        translate(key, cx)
     }
 
-    fn tab_tooltip_text(&self, _: &App) -> Option<SharedString> {
-        Some(self.kind.tab_tooltip())
+    fn tab_tooltip_text(&self, cx: &App) -> Option<SharedString> {
+        Some(translate(self.kind.tab_tooltip(), cx))
     }
 
     fn tab_content(

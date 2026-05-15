@@ -29,6 +29,7 @@ use util::{ResultExt as _, debug_panic};
 use workspace::{PathList, SerializedWorkspaceLocation, WorkspaceDb};
 
 use crate::DEFAULT_THREAD_TITLE;
+use theme::translate;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ThreadId(uuid::Uuid);
@@ -320,6 +321,12 @@ impl ThreadMetadata {
         self.title
             .clone()
             .unwrap_or_else(|| crate::DEFAULT_THREAD_TITLE.into())
+    }
+
+    pub fn display_title_for_ui(&self, cx: &App) -> SharedString {
+        self.title
+            .clone()
+            .unwrap_or_else(|| translate(crate::DEFAULT_THREAD_TITLE, cx))
     }
 
     pub fn folder_paths(&self) -> &PathList {

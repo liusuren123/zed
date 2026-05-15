@@ -36,6 +36,7 @@ use prompt_store::PromptStore;
 use rope::Point;
 use settings::Settings;
 use std::{cmp::min, fmt::Write, ops::Range, rc::Rc, sync::Arc};
+use theme::translate;
 use theme_settings::ThemeSettings;
 use ui::{ContextMenu, prelude::*};
 use util::paths::PathStyle;
@@ -635,7 +636,7 @@ impl MessageEditor {
         };
         let thread_title = title
             .filter(|title| !title.is_empty())
-            .unwrap_or_else(|| SharedString::new_static(DEFAULT_THREAD_TITLE));
+            .unwrap_or_else(|| translate(DEFAULT_THREAD_TITLE, cx));
         let uri = MentionUri::Thread {
             id: session_id,
             name: thread_title.to_string(),

@@ -74,6 +74,7 @@ use settings::TerminalDockPosition;
 use settings::{Settings, update_settings_file};
 use terminal::{Event as TerminalEvent, terminal_settings::TerminalSettings};
 use terminal_view::{TerminalView, terminal_panel::TerminalPanel};
+use theme::translate;
 use theme_settings::ThemeSettings;
 use ui::{
     Button, ContextMenu, ContextMenuEntry, IconButton, PopoverMenu, PopoverMenuHandle, Tab,
@@ -3486,10 +3487,10 @@ impl AgentPanel {
 
             let label = store
                 .agent_display_name(&id)
-                .unwrap_or_else(|| self.selected_agent.label());
+                .unwrap_or_else(|| self.selected_agent.translated_label(cx));
             (icon, label)
         } else {
-            (None, self.selected_agent.label())
+            (None, self.selected_agent.translated_label(cx))
         };
 
         let active_thread = match &self.base_view {
@@ -3542,7 +3543,7 @@ impl AgentPanel {
                             }
                         })
                         .item(
-                            ContextMenuEntry::new("Zed Agent")
+                            ContextMenuEntry::new(translate("Zed Agent", cx))
                                 .when(is_agent_selected(Agent::NativeAgent), |this| {
                                     this.action(Box::new(NewExternalAgentThread { agent: None }))
                                 })
@@ -3694,7 +3695,7 @@ impl AgentPanel {
                         })
                         .separator()
                         .item(
-                            ContextMenuEntry::new("Add More Agents")
+                            ContextMenuEntry::new(translate("Add More Agents", cx))
                                 .icon(IconName::Plus)
                                 .icon_color(Color::Muted)
                                 .handler({

@@ -9,6 +9,7 @@ use gpui::{
 use language_model::LanguageModelRegistry;
 use language_models::provider::open_ai_compatible::{AvailableModel, ModelCapabilities};
 use settings::{OpenAiCompatibleSettingsContent, update_settings_file};
+use theme::translate;
 use ui::{
     Banner, Checkbox, KeyBinding, Modal, ModalFooter, ModalHeader, Section, ToggleState,
     WithScrollbar, prelude::*,
@@ -65,16 +66,29 @@ struct AddLlmProviderInput {
 
 impl AddLlmProviderInput {
     fn new(provider: LlmCompatibleProvider, window: &mut Window, cx: &mut App) -> Self {
-        let provider_name =
-            single_line_input("Provider Name", provider.name(), None, 1, window, cx);
-        let api_url = single_line_input("API URL", provider.api_url(), None, 2, window, cx);
+        let provider_name = single_line_input(
+            translate("Provider Name", cx),
+            provider.name(),
+            None,
+            1,
+            window,
+            cx,
+        );
+        let api_url = single_line_input(
+            translate("API URL", cx),
+            provider.api_url(),
+            None,
+            2,
+            window,
+            cx,
+        );
         let api_key = cx.new(|cx| {
             InputField::new(
                 window,
                 cx,
                 "000000000000000000000000000000000000000000000000",
             )
-            .label("API Key")
+            .label(translate("API Key", cx))
             .tab_index(3)
             .tab_stop(true)
             .masked(true)
@@ -119,7 +133,7 @@ impl ModelInput {
         let base_tab_index = (3 + (model_index * 4)) as isize;
 
         let model_name = single_line_input(
-            "Model Name",
+            translate("Model Name", cx),
             "e.g. gpt-5, claude-opus-4, gemini-2.5-pro",
             None,
             base_tab_index + 1,
@@ -127,7 +141,7 @@ impl ModelInput {
             cx,
         );
         let max_completion_tokens = single_line_input(
-            "Max Completion Tokens",
+            translate("Max Completion Tokens", cx),
             "200000",
             Some("200000"),
             base_tab_index + 2,
@@ -135,7 +149,7 @@ impl ModelInput {
             cx,
         );
         let max_output_tokens = single_line_input(
-            "Max Output Tokens",
+            translate("Max Output Tokens", cx),
             "Max Output Tokens",
             Some("32000"),
             base_tab_index + 3,
@@ -143,7 +157,7 @@ impl ModelInput {
             cx,
         );
         let max_tokens = single_line_input(
-            "Max Tokens",
+            translate("Max Tokens", cx),
             "Max Tokens",
             Some("200000"),
             base_tab_index + 4,
@@ -343,9 +357,9 @@ impl AddLlmProviderModal {
             .child(
                 h_flex()
                     .justify_between()
-                    .child(Label::new("Models").size(LabelSize::Small))
+                    .child(Label::new(translate("Models", cx)).size(LabelSize::Small))
                     .child(
-                        Button::new("add-model", "Add Model")
+                        Button::new("add-model", translate("Add Model", cx))
                             .start_icon(
                                 Icon::new(IconName::Plus)
                                     .size(IconSize::XSmall)
@@ -452,7 +466,7 @@ impl AddLlmProviderModal {
             )
             .when(has_more_than_one_model, |this| {
                 this.child(
-                    Button::new(("remove-model", ix), "Remove Model")
+                    Button::new(("remove-model", ix), translate("Remove Model", cx))
                         .start_icon(
                             Icon::new(IconName::Trash)
                                 .size(IconSize::XSmall)
@@ -520,13 +534,16 @@ impl Render for AddLlmProviderModal {
             }))
             .child(
                 Modal::new("configure-context-server", None)
-                    .header(ModalHeader::new().headline("Add LLM Provider").description(
-                        match self.provider {
-                            LlmCompatibleProvider::OpenAi => {
-                                "This provider will use an OpenAI compatible API."
-                            }
-                        },
-                    ))
+                    .header(
+                        ModalHeader::new()
+                            .headline(translate("Add LLM Provider", cx))
+                            .description(match self.provider {
+                                LlmCompatibleProvider::OpenAi => translate(
+                                    "This provider will use an OpenAI compatible API.",
+                                    cx,
+                                ),
+                            }),
+                    )
                     .when_some(self.last_error.clone(), |this, error| {
                         this.section(
                             Section::new().child(
@@ -563,7 +580,7 @@ impl Render for AddLlmProviderModal {
                             h_flex()
                                 .gap_1()
                                 .child(
-                                    Button::new("cancel", "Cancel")
+                                    Button::new("cancel", translate("Cancel", cx))
                                         .key_binding(
                                             KeyBinding::for_action_in(
                                                 &menu::Cancel,
@@ -577,7 +594,7 @@ impl Render for AddLlmProviderModal {
                                         })),
                                 )
                                 .child(
-                                    Button::new("save-server", "Save Provider")
+                                    Button::new("save-server", translate("Save Provider", cx))
                                         .key_binding(
                                             KeyBinding::for_action_in(
                                                 &menu::Confirm,

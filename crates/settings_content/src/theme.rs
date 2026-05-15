@@ -7,6 +7,32 @@ use std::{borrow::Cow, fmt::Display, sync::Arc};
 
 use crate::serialize_f32_with_two_decimal_places;
 
+/// The language to use for the Zed user interface.
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    MergeFrom,
+    strum::VariantArray,
+    strum::VariantNames,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum UiLanguage {
+    /// Display the UI in English.
+    #[default]
+    #[strum(serialize = "English")]
+    English,
+    /// Display the UI in Simplified Chinese (中文简体).
+    #[strum(serialize = "Chinese Simplified")]
+    ChineseSimplified,
+}
+
 /// OpenType font features as a map of feature tag to value.
 /// This is a content type that mirrors `gpui::FontFeatures` but without the Arc wrapper.
 /// Values can be specified as booleans (true=1, false=0) or integers.
@@ -181,6 +207,11 @@ pub struct ThemeSettingsContent {
     /// These values will override the ones on the specified theme
     #[serde(default)]
     pub theme_overrides: HashMap<String, ThemeStyleContent>,
+
+    /// The language to use for the Zed user interface.
+    ///
+    /// Default: english
+    pub ui_language: Option<UiLanguage>,
 }
 
 /// A font size value in pixels, wrapping around `f32` for custom settings UI rendering.

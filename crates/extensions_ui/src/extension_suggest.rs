@@ -6,6 +6,7 @@ use editor::Editor;
 use extension_host::ExtensionStore;
 use gpui::{AppContext as _, Context, Entity, SharedString, Window};
 use language::Buffer;
+use theme::translate;
 use ui::prelude::*;
 use util::ResultExt;
 use util::rel_path::RelPath;
@@ -172,12 +173,16 @@ pub(crate) fn suggest(buffer: Entity<Buffer>, window: &mut Window, cx: &mut Cont
             cx.new(move |cx| {
                 MessageNotification::new(
                     format!(
-                        "Do you want to install the recommended '{}' extension for '{}' files?",
-                        extension_id, file_name_or_extension
+                        "{} '{}' {} '{}' {}",
+                        translate("Do you want to install the recommended", cx),
+                        extension_id,
+                        translate("extension for", cx),
+                        file_name_or_extension,
+                        translate("files?", cx),
                     ),
                     cx,
                 )
-                .primary_message("Yes, install extension")
+                .primary_message(translate("Yes, install extension", cx))
                 .primary_icon(IconName::Check)
                 .primary_icon_color(Color::Success)
                 .primary_on_click({
@@ -190,7 +195,7 @@ pub(crate) fn suggest(buffer: Entity<Buffer>, window: &mut Window, cx: &mut Cont
                         });
                     }
                 })
-                .secondary_message("No, don't install it")
+                .secondary_message(translate("No, don't install it", cx))
                 .secondary_icon(IconName::Close)
                 .secondary_icon_color(Color::Error)
                 .secondary_on_click(move |_window, cx| {
