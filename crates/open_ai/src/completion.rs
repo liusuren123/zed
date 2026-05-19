@@ -141,6 +141,7 @@ pub fn into_open_ai(
         stop: request.stop,
         temperature: request.temperature.or(Some(1.0)),
         max_completion_tokens: max_output_tokens,
+        max_tokens: max_output_tokens,
         parallel_tool_calls: if supports_parallel_tool_calls && !request.tools.is_empty() {
             Some(supports_parallel_tool_calls)
         } else {

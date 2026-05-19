@@ -48,6 +48,10 @@ use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
 use util::{ResultExt, paths::PathStyle, rel_path::RelPath};
 use worktree::Worktree;
 
+/// Global store for bot access tokens.
+static BOT_TOKENS: std::sync::LazyLock<std::sync::Mutex<HashSet<String>>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(HashSet::default()));
+
 pub struct HeadlessProject {
     pub fs: Arc<dyn Fs>,
     pub session: AnyProtoClient,
@@ -294,6 +298,14 @@ impl HeadlessProject {
         session.add_request_handler(cx.weak_entity(), Self::handle_ping);
         session.add_request_handler(cx.weak_entity(), Self::handle_get_processes);
         session.add_request_handler(cx.weak_entity(), Self::handle_get_remote_profiling_data);
+        session.add_request_handler(cx.weak_entity(), Self::handle_read_file);
+        session.add_request_handler(cx.weak_entity(), Self::handle_read_directory);
+        session.add_request_handler(cx.weak_entity(), Self::handle_search_files);
+        session.add_request_handler(cx.weak_entity(), Self::handle_search_symbols);
+        session.add_request_handler(cx.weak_entity(), Self::handle_git_status);
+        session.add_request_handler(cx.weak_entity(), Self::handle_bot_bind);
+        session.add_request_handler(cx.weak_entity(), Self::handle_list_workspaces);
+        session.add_request_handler(cx.weak_entity(), Self::handle_generate_bot_token);
 
         session.add_entity_request_handler(Self::handle_add_worktree);
         session.add_request_handler(cx.weak_entity(), Self::handle_remove_worktree);
@@ -338,6 +350,9 @@ impl HeadlessProject {
         AgentServerStore::init_headless(&session);
         ContextServerStore::init_headless(&session);
 
+        let startup_token = uuid::Uuid::new_v4().to_string();
+        BOT_TOKENS.lock().unwrap().insert(startup_token.clone());
+        log::info!("[AUDIT] Startup bot token: {}", startup_token);
         HeadlessProject {
             next_entry_id: Default::default(),
             session,
@@ -1317,6 +1332,149 @@ impl HeadlessProject {
             .collect();
         Ok(proto::DirectoryEnvironment { environment })
     }
+
+    async fn handle_read_file(
+        this: Entity<Self>,
+        envelope: TypedEnvelope<proto::ReadFile>,
+        cx: AsyncApp,
+    ) -> Result<proto::ReadFileResponse> {
+        const MAX_FILE_SIZE: u64 = 524288;
+        let path = shellexpand::tilde(&envelope.payload.path).to_string();
+        let abs_path = std::path::Path::new(&path);
+        let max_bytes = envelope.payload.max_bytes.unwrap_or(MAX_FILE_SIZE);
+
+        let fs = cx.read_entity(&this, |this, _| this.fs.clone());
+        let content = fs.load(abs_path).await?;
+        let total_lines = content.lines().count() as u64;
+
+        let metadata = fs.metadata(abs_path).await?;
+        let file_size = metadata.as_ref().map(|m| m.len).unwrap_or(content.len() as u64);
+        let modified_at = metadata
+            .and_then(|m| m.mtime.to_seconds_and_nanos_for_persistence())
+            .map(|(secs, _nanos)| secs)
+            .unwrap_or(0);
+
+        let (result_content, truncated) = if content.len() as u64 > max_bytes {
+            let truncated_content: String =
+                content.lines().take(100).collect::<Vec<&str>>().join("\n");
+            (truncated_content, true)
+        } else {
+            let start_line = envelope.payload.start_line.unwrap_or(1).saturating_sub(1);
+            let end_line = envelope.payload.end_line.unwrap_or(total_lines);
+            let text: String = content
+                .lines()
+                .skip(start_line as usize)
+                .take(end_line.saturating_sub(start_line) as usize)
+                .collect::<Vec<&str>>()
+                .join("\n");
+            (text, false)
+        };
+
+        log::info!("[AUDIT] Read file: path={} lines={} size={}", path, total_lines, file_size);
+        Ok(proto::ReadFileResponse {
+            content: result_content,
+            total_lines,
+            file_size,
+            modified_at,
+            truncated,
+        })
+    }
+
+    async fn handle_read_directory(
+        this: Entity<Self>,
+        envelope: TypedEnvelope<proto::ReadDirectory>,
+        cx: AsyncApp,
+    ) -> Result<proto::ReadDirectoryResponse> {
+        let path = shellexpand::tilde(&envelope.payload.path).to_string();
+        let abs_path = std::path::Path::new(&path);
+        let depth = envelope.payload.depth.max(1);
+        let max_entries = if envelope.payload.max_entries == 0 { 200 } else { envelope.payload.max_entries } as usize;
+
+        let fs = cx.read_entity(&this, |this, _| this.fs.clone());
+        let entries = collect_directory_entries(&fs, abs_path, depth).await?;
+        let truncated = entries.len() >= max_entries;
+        let entries = entries.into_iter().take(max_entries).collect::<Vec<_>>();
+
+        log::info!("[AUDIT] Read directory: path={} entries={}", path, entries.len());
+        Ok(proto::ReadDirectoryResponse { entries, truncated })
+    }
+
+    async fn handle_search_files(
+        _this: Entity<Self>,
+        envelope: TypedEnvelope<proto::SearchFilesRequest>,
+        _cx: AsyncApp,
+    ) -> Result<proto::SearchFilesResponse> {
+        log::info!("[AUDIT] Search files: pattern={}", envelope.payload.pattern);
+        Ok(proto::SearchFilesResponse { matches: Vec::new(), truncated: false })
+    }
+
+    async fn handle_search_symbols(
+        _this: Entity<Self>,
+        envelope: TypedEnvelope<proto::SearchSymbolsRequest>,
+        _cx: AsyncApp,
+    ) -> Result<proto::SearchSymbolsResponse> {
+        log::info!("[AUDIT] Search symbols: query={}", envelope.payload.query);
+        Ok(proto::SearchSymbolsResponse { symbols: Vec::new() })
+    }
+
+    async fn handle_git_status(
+        _this: Entity<Self>,
+        _envelope: TypedEnvelope<proto::GitStatusRequest>,
+        _cx: AsyncApp,
+    ) -> Result<proto::GitStatusResponse> {
+        log::info!("[AUDIT] Git status requested");
+        Ok(proto::GitStatusResponse { branch: String::new(), changes: Vec::new(), ahead: 0, behind: 0 })
+    }
+
+    async fn handle_bot_bind(
+        _this: Entity<Self>,
+        envelope: TypedEnvelope<proto::BotBindRequest>,
+        _cx: AsyncApp,
+    ) -> Result<proto::BotBindResponse> {
+        let bot_user_id = &envelope.payload.bot_user_id;
+        let access_token = &envelope.payload.access_token;
+
+        if bot_user_id.is_empty() || access_token.is_empty() {
+            log::warn!("[AUDIT] Bot bind rejected: empty credentials");
+            return Ok(proto::BotBindResponse {
+                success: false,
+                message: Some("bot_user_id and access_token are required".to_string()),
+            });
+        }
+
+        let valid = BOT_TOKENS.lock().unwrap().remove(access_token);
+        if valid {
+            log::info!("[AUDIT] Bot bind: user={} bound successfully", bot_user_id);
+            Ok(proto::BotBindResponse { success: true, message: None })
+        } else {
+            log::warn!("[AUDIT] Bot bind rejected: user={} invalid token", bot_user_id);
+            Ok(proto::BotBindResponse {
+                success: false,
+                message: Some("Invalid or expired token".to_string()),
+            })
+        }
+    }
+
+    async fn handle_generate_bot_token(
+        _this: Entity<Self>,
+        _envelope: TypedEnvelope<proto::GenerateBotTokenRequest>,
+        _cx: AsyncApp,
+    ) -> Result<proto::GenerateBotTokenResponse> {
+        let token = uuid::Uuid::new_v4().to_string();
+        BOT_TOKENS.lock().unwrap().insert(token.clone());
+        log::info!("[AUDIT] Generated bot token: {}", token);
+        Ok(proto::GenerateBotTokenResponse { token })
+    }
+
+    async fn handle_list_workspaces(
+        _this: Entity<Self>,
+        _envelope: TypedEnvelope<proto::ListWorkspacesRequest>,
+        _cx: AsyncApp,
+    ) -> Result<proto::ListWorkspacesResponse> {
+        log::info!("[AUDIT] List workspaces requested");
+        Ok(proto::ListWorkspacesResponse { workspaces: Vec::new() })
+    }
+
 }
 
 fn prompt_to_proto(
@@ -1333,6 +1491,40 @@ fn prompt_to_proto(
             proto::language_server_prompt_request::Critical {},
         ),
     }
+}
+
+async fn collect_directory_entries(
+    fs: &Arc<dyn Fs>,
+    path: &std::path::Path,
+    depth: u32,
+) -> Result<Vec<proto::DirectoryEntry>> {
+    use smol::stream::StreamExt;
+
+    let mut entries = Vec::new();
+    let mut response = fs.read_dir(path).await?;
+    while let Some(entry) = response.next().await {
+        let entry = entry?;
+        let Some(file_name) = entry.file_name() else { continue; };
+        let name = file_name.to_string_lossy().into_owned();
+        let entry_path = path.join(&name);
+        let is_directory = fs.is_dir(&entry_path).await;
+        let file_size = if is_directory {
+            None
+        } else {
+            fs.metadata(&entry_path).await.ok().flatten().map(|m| m.len)
+        };
+        let children = if is_directory && depth > 1 {
+            Box::pin(collect_directory_entries(fs, &entry_path, depth - 1)).await.unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        entries.push(proto::DirectoryEntry { name, is_directory, file_size, children });
+    }
+    entries.sort_by(|a, b| {
+        a.is_directory.cmp(&b.is_directory).reverse()
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(entries)
 }
 
 fn find_venv_python(working_directory: &str) -> Option<std::path::PathBuf> {

@@ -98,8 +98,8 @@ use workspace::{
 };
 use workspace::{Pane, notifications::DetachAndPromptErr};
 use zed_actions::{
-    About, OpenAccountSettings, OpenBrowser, OpenDocs, OpenServerSettings, OpenSettingsFile,
-    OpenZedUrl, Quit,
+    About, OpenAccountSettings,
+    OpenBrowser, OpenDocs, OpenServerSettings, OpenSettingsFile, OpenZedUrl, Quit,
 };
 
 pub struct CrashHandler(pub Arc<crashes::Client>);
@@ -141,6 +141,7 @@ actions!(
         TestPanic,
         /// Triggers a hard crash for debugging.
         TestCrash,
+        GenerateBotToken,
     ]
 );
 
@@ -182,6 +183,97 @@ pub fn init(cx: &mut App) {
         }
     })
     .detach();
+    cx.on_action(|_: &GenerateBotToken, cx| {
+        let token = Uuid::new_v4().to_string();
+        cx.write_to_clipboard(ClipboardItem::new_string(token.clone()));
+        let token_for_notif = token.clone();
+        show_app_notification(
+            NotificationId::unique::<GenerateBotToken>(),
+            cx,
+            move |cx| {
+                cx.new(|cx| {
+                    MessageNotification::new(
+                        format!(
+                            "Bot token generated and copied to clipboard:
+
+{}",
+                            token_for_notif
+                        ),
+                        cx,
+                    )
+                })
+            },
+        );
+    });
+    cx.on_action(|_: &zed_actions::FeishuBotGenerateToken, cx| {
+        let token = Uuid::new_v4().to_string();
+        cx.write_to_clipboard(ClipboardItem::new_string(token.clone()));
+        let token_for_notif = token.clone();
+        show_app_notification(
+            NotificationId::unique::<zed_actions::FeishuBotGenerateToken>(),
+            cx,
+            move |cx| {
+                cx.new(|cx| {
+                    MessageNotification::new(
+                        format!(
+                            "Bot token generated and copied to clipboard:
+
+{}",
+                            token_for_notif
+                        ),
+                        cx,
+                    )
+                })
+            },
+        );
+    });
+    cx.on_action(|_: &zed_actions::FeishuBotBind, cx| {
+        let fs = <dyn Fs>::global(cx);
+        let clipboard_text = cx
+            .read_from_clipboard()
+            .and_then(|item| item.text().map(|t| t.to_string()))
+            .unwrap_or_default();
+        if clipboard_text.trim().is_empty() {
+            show_app_notification(
+                NotificationId::unique::<zed_actions::FeishuBotBind>(),
+                cx,
+                move |cx| {
+                    cx.new(|cx| {
+                        MessageNotification::new(
+                            "No token found in clipboard. Generate a token first.".to_string(),
+                            cx,
+                        )
+                    })
+                },
+            );
+            return;
+        }
+        let token = clipboard_text.trim().to_string();
+        let bind_token = token.clone();
+        settings::update_settings_file(fs.clone(), cx, move |settings, _cx| {
+            let feishu_bot = settings.feishu_bot.get_or_insert_default();
+            feishu_bot.bound = Some(true);
+            feishu_bot.bound_user_id = Some(bind_token);
+        });
+    });
+    cx.on_action(|_: &zed_actions::FeishuBotUnbind, cx| {
+        let fs = <dyn Fs>::global(cx);
+        settings::update_settings_file(fs.clone(), cx, move |settings, _cx| {
+            let feishu_bot = settings.feishu_bot.get_or_insert_default();
+            feishu_bot.bound = Some(false);
+            feishu_bot.bound_user_id = None;
+            feishu_bot.bound_workspace = None;
+        });
+        show_app_notification(
+            NotificationId::unique::<zed_actions::FeishuBotUnbind>(),
+            cx,
+            move |cx| {
+                cx.new(|cx| {
+                    MessageNotification::new("Feishu Bot unbound successfully.".to_string(), cx)
+                })
+            },
+        );
+    });
     cx.on_action(|_: &OpenLog, cx| {
         with_active_or_new_workspace(cx, |workspace, window, cx| {
             open_log_file(workspace, window, cx);

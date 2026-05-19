@@ -75,6 +75,12 @@ actions!(
         OpenOnboarding,
         /// Shows the auto-update notification for testing.
         ShowUpdateNotification,
+        /// Generates a bot token for Feishu Bot binding and copies it to the clipboard.
+        FeishuBotGenerateToken,
+        /// Binds the Feishu Bot to the current workspace using a token from the clipboard.
+        FeishuBotBind,
+        /// Unbinds the Feishu Bot from the current workspace.
+        FeishuBotUnbind,
     ]
 );
 

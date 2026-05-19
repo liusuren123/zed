@@ -184,6 +184,7 @@ impl VsCodeSettings {
             diagnostics: None,
             editor: self.editor_settings_content(),
             extension: ExtensionSettingsContent::default(),
+            feishu_bot: None,
             file_finder: None,
             git: self.git_settings_content(),
             git_panel: self.git_panel_settings_content(),

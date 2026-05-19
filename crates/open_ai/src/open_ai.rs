@@ -338,6 +338,11 @@ pub struct Request {
     pub stream_options: Option<StreamOptions>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_completion_tokens: Option<u64>,
+    /// `max_tokens` is used by some providers (e.g. DeepSeek) that don't
+    /// recognize `max_completion_tokens`.  Setting both ensures compatibility
+    /// with both OpenAI and OpenAI-compatible providers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub stop: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

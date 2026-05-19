@@ -376,6 +376,22 @@ messages!(
     (KillKernel, Background),
     (GetRemoteProfilingData, Background),
     (GetRemoteProfilingDataResponse, Background),
+    (ReadFile, Background),
+    (ReadFileResponse, Background),
+    (ReadDirectory, Background),
+    (ReadDirectoryResponse, Background),
+    (SearchFilesRequest, Background),
+    (SearchFilesResponse, Background),
+    (SearchSymbolsRequest, Background),
+    (SearchSymbolsResponse, Background),
+    (GitStatusRequest, Background),
+    (GitStatusResponse, Background),
+    (BotBindRequest, Foreground),
+    (BotBindResponse, Foreground),
+    (ListWorkspacesRequest, Foreground),
+    (ListWorkspacesResponse, Foreground),
+    (GenerateBotTokenRequest, Foreground),
+    (GenerateBotTokenResponse, Foreground),
 );
 
 request_messages!(
@@ -588,6 +604,14 @@ request_messages!(
     (SpawnKernel, SpawnKernelResponse),
     (KillKernel, Ack),
     (GetRemoteProfilingData, GetRemoteProfilingDataResponse),
+    (ReadFile, ReadFileResponse),
+    (ReadDirectory, ReadDirectoryResponse),
+    (SearchFilesRequest, SearchFilesResponse),
+    (SearchSymbolsRequest, SearchSymbolsResponse),
+    (GitStatusRequest, GitStatusResponse),
+    (BotBindRequest, BotBindResponse),
+    (ListWorkspacesRequest, ListWorkspacesResponse),
+    (GenerateBotTokenRequest, GenerateBotTokenResponse),
 );
 
 lsp_messages!(

@@ -16,6 +16,7 @@ import "notification.proto";
 import "task.proto";
 import "toolchain.proto";
 import "worktree.proto";
+import "remote_control.proto";
 
 // Looking for a number? Search "// current max"
 message Envelope {
@@ -484,7 +485,25 @@ message Envelope {
     SearchCommits search_commits = 449;
     SearchCommitsResponse search_commits_response = 450;
     GetInitialGraphData get_initial_graph_data = 451;
-    GetInitialGraphDataResponse get_initial_graph_data_response = 452; // current max
+    GetInitialGraphDataResponse get_initial_graph_data_response = 452;
+
+    ReadFile read_file = 453;
+    ReadFileResponse read_file_response = 454;
+    ReadDirectory read_directory = 455;
+    ReadDirectoryResponse read_directory_response = 456;
+    SearchFilesRequest search_files_request = 457;
+    SearchFilesResponse search_files_response = 458;
+    SearchSymbolsRequest search_symbols_request = 459;
+    SearchSymbolsResponse search_symbols_response = 460;
+    GitStatusRequest git_status_request = 461;
+    GitStatusResponse git_status_response = 462;
+    BotBindRequest bot_bind_request = 463;
+    BotBindResponse bot_bind_response = 464;
+    ListWorkspacesRequest list_workspaces_request = 465;
+    ListWorkspacesResponse list_workspaces_response = 466;
+
+    GenerateBotTokenRequest generate_bot_token_request = 467;
+    GenerateBotTokenResponse generate_bot_token_response = 468; // current max
   }
 
   reserved 87 to 88;

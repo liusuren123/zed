@@ -13,7 +13,7 @@ use crate::{
     ActionLink, DynamicItem, PROJECT, SettingField, SettingItem, SettingsFieldMetadata,
     SettingsPage, SettingsPageItem, SubPageLink, USER, active_language, all_language_names,
     pages::{
-        open_audio_test_window, render_edit_prediction_setup_page,
+        open_audio_test_window, render_edit_prediction_setup_page, render_feishu_bot_setup_page,
         render_tool_permissions_setup_page,
     },
 };
@@ -77,6 +77,7 @@ pub(crate) fn settings_data(cx: &App) -> Vec<SettingsPage> {
         collaboration_page(),
         ai_page(cx),
         network_page(),
+        feishu_bot_page(),
     ];
 
     use feature_flags::FeatureFlagAppExt as _;
@@ -7847,6 +7848,98 @@ fn network_page() -> SettingsPage {
     SettingsPage {
         title: "Network",
         items: concat_sections![network_section()],
+    }
+}
+
+fn feishu_bot_page() -> SettingsPage {
+    fn general_section() -> [SettingsPageItem; 4] {
+        [
+            SettingsPageItem::SectionHeader("General"),
+            SettingsPageItem::SettingItem(SettingItem {
+                title: "Enable Feishu Bot",
+                description: "Whether to enable the Feishu Bot integration for remote control.",
+                field: Box::new(SettingField {
+                    json_path: Some("feishu_bot.enabled"),
+                    pick: |settings_content| settings_content.feishu_bot.as_ref()?.enabled.as_ref(),
+                    write: |settings_content, value, _| {
+                        settings_content.feishu_bot.get_or_insert_default().enabled = value;
+                    },
+                }),
+                metadata: None,
+                files: USER,
+            }),
+            SettingsPageItem::SettingItem(SettingItem {
+                title: "App ID",
+                description: "The Feishu application ID from the Feishu Open Platform.",
+                field: Box::new(SettingField {
+                    json_path: Some("feishu_bot.app_id"),
+                    pick: |settings_content| settings_content.feishu_bot.as_ref()?.app_id.as_ref(),
+                    write: |settings_content, value, _| {
+                        settings_content.feishu_bot.get_or_insert_default().app_id = value;
+                    },
+                }),
+                metadata: Some(Box::new(SettingsFieldMetadata {
+                    placeholder: Some("cli_xxxxxxxxxxxx"),
+                    ..Default::default()
+                })),
+                files: USER,
+            }),
+            SettingsPageItem::SettingItem(SettingItem {
+                title: "App Secret",
+                description: "The Feishu application secret for API authentication.",
+                field: Box::new(SettingField {
+                    json_path: Some("feishu_bot.app_secret"),
+                    pick: |settings_content| {
+                        settings_content.feishu_bot.as_ref()?.app_secret.as_ref()
+                    },
+                    write: |settings_content, value, _| {
+                        settings_content
+                            .feishu_bot
+                            .get_or_insert_default()
+                            .app_secret = value;
+                    },
+                }),
+                metadata: Some(Box::new(SettingsFieldMetadata {
+                    placeholder: Some("your_app_secret"),
+                    ..Default::default()
+                })),
+                files: USER,
+            }),
+        ]
+    }
+
+    fn binding_section() -> [SettingsPageItem; 3] {
+        [
+            SettingsPageItem::SectionHeader("Bot Binding"),
+            SettingsPageItem::SubPageLink(SubPageLink {
+                title: "Bot Status & Binding".into(),
+                r#type: Default::default(),
+                json_path: Some("feishu_bot.bound"),
+                description: Some(
+                    "View bot connection status, bind a bot with a token, or unbind.".into(),
+                ),
+                in_json: true,
+                files: USER,
+                render: render_feishu_bot_setup_page,
+            }),
+            SettingsPageItem::ActionLink(ActionLink {
+                title: "Generate Bot Token".into(),
+                description: Some(
+                    "Generate a new bot token and copy it to the clipboard. Use this token to bind the bot via Feishu."
+                        .into(),
+                ),
+                button_text: "Generate".into(),
+                on_click: Arc::new(|_settings_window, window, cx| {
+                    window.dispatch_action(zed_actions::FeishuBotGenerateToken.boxed_clone(), cx);
+                }),
+                files: USER,
+            }),
+        ]
+    }
+
+    SettingsPage {
+        title: "Feishu Bot",
+        items: concat_sections![general_section(), binding_section()],
     }
 }
 

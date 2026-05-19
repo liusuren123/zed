@@ -3,6 +3,7 @@ mod agent;
 mod editor;
 mod extension;
 mod fallible_options;
+mod feishu_bot;
 mod language;
 mod language_model;
 pub mod merge_from;
@@ -18,6 +19,7 @@ pub use agent::*;
 pub use editor::*;
 pub use extension::*;
 pub use fallible_options::*;
+pub use feishu_bot::*;
 pub use language::*;
 pub use language_model::*;
 pub use merge_from::MergeFrom as MergeFromTrait;
@@ -131,6 +133,9 @@ pub struct SettingsContent {
 
     #[serde(flatten)]
     pub remote: RemoteSettingsContent,
+
+    /// Configuration for the Feishu Bot integration.
+    pub feishu_bot: Option<FeishuBotSettingsContent>,
 
     /// Settings related to the file finder.
     pub file_finder: Option<FileFinderSettingsContent>,
