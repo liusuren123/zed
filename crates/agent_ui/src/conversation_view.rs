@@ -3442,7 +3442,7 @@ pub(crate) mod tests {
 
         let fs = FakeFs::new(cx.executor());
         fs.insert_tree(
-            "/project",
+            util::path!("/project"),
             json!({
                 "src": {
                     "main.rs": ""
@@ -3452,7 +3452,7 @@ pub(crate) mod tests {
         )
         .await;
 
-        let project = Project::test(fs, [Path::new("/project")], cx).await;
+        let project = Project::test(fs, [Path::new(util::path!("/project"))], cx).await;
         let resolver = cx.update(|cx| AgentCodeSpanResolver::new(&project.downgrade(), cx));
 
         let uri = resolver
@@ -3461,7 +3461,7 @@ pub(crate) mod tests {
         assert_eq!(
             MentionUri::parse(&uri, PathStyle::local()).unwrap(),
             MentionUri::Selection {
-                abs_path: Some(PathBuf::from("/project/src/main.rs")),
+                abs_path: Some(PathBuf::from(util::path!("/project/src/main.rs"))),
                 line_range: 9..=9,
             }
         );
