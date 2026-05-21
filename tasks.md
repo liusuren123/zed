@@ -11,17 +11,17 @@
 |------|------|------|
 | 1 | Merge upstream/main → 获取 Skills 基础 + 各类修复 | ✅ Done |
 | 2 | Cherry-pick `agent-panel-menu-items` → Skills/Rules 菜单分组 | ✅ Done |
-| 3 | Cherry-pick `create-skill-prevent-dupe` → 防重复 create-skill | 🔄 In Progress |
-| 4 | Cherry-pick `martin/ai-234-lag` → Agent outline 渲染性能修复 | ⬜ Pending |
-| 5 | Cherry-pick `link-backticked-file-paths` → Agent 面板文件路径可点击 | ⬜ Pending |
-| 6 | Cherry-pick `martin/ai-233` → 空路径代码块渲染为文件引用 | ⬜ Pending |
-| 7 | Cherry-pick `kb/multi-buffer-auto-reveal` → 多缓冲导航修复 | ⬜ Pending |
-| 8 | Cherry-pick `fix-issue-57039` → dev_container 路径修复 | ⬜ Pending |
-| 9 | Cherry-pick `fix-issue-56254` → Vim space-leader 延迟修复 | ⬜ Pending |
-| 10 | Cherry-pick `fix-gpui-windows-reentrancy` → Windows GPUI 重入修复 | ⬜ Pending |
-| 11 | Cherry-pick `fix-issue-55939` → git_ui 按钮隐藏修复 | ⬜ Pending |
-| 12 | Cherry-pick `fix-linux-rounding-sidebar` → Linux 侧栏圆角修复 | ⬜ Pending |
-| 13 | Cherry-pick `fix-onboarding-telemetry` → 遥测修复 | ⬜ Pending |
+| 3 | Cherry-pick `create-skill-prevent-dupe` → 防重复 create-skill | ✅ Done |
+| 4 | Cherry-pick `martin/ai-234-lag` → Agent outline 渲染性能修复 | ✅ Done |
+| 5 | Cherry-pick `link-backticked-file-paths` → Agent 面板文件路径可点击 | ✅ Done |
+| 6 | Cherry-pick `martin/ai-233` → 空路径代码块渲染为文件引用 | ⏭️ Skipped (已覆盖) |
+| 7 | Cherry-pick `kb/multi-buffer-auto-reveal` → 多缓冲导航修复 | ✅ Done |
+| 8 | Cherry-pick `fix-issue-57039` → dev_container 路径修复 | ✅ Done |
+| 9 | Cherry-pick `fix-issue-56254` → Vim space-leader 延迟修复 | ✅ Done |
+| 10 | Cherry-pick `fix-gpui-windows-reentrancy` → Windows GPUI 重入修复 | ✅ Done |
+| 11 | Cherry-pick `fix-issue-55939` → git_ui 按钮隐藏修复 | ✅ Done |
+| 12 | Cherry-pick `fix-linux-rounding-sidebar` → Linux 侧栏圆角修复 | ✅ Done |
+| 13 | Cherry-pick `fix-onboarding-telemetry` → 遥测修复 | ✅ Done |
 
 ---
 
