@@ -4820,6 +4820,12 @@ impl AgentPanel {
             .with_handle(self.agent_panel_menu_handle.clone())
             .menu({
                 move |window, cx| {
+                    let skills_label = translate("Skills", cx);
+                    let create_skill_label = translate("Create Skill…", cx);
+                    let manage_skills_label = translate("Manage Skills…", cx);
+                    let rules_label = translate("Rules", cx);
+                    let open_global_agents_label = translate("Open Global AGENTS.md", cx);
+                    let open_project_agents_label = translate("Open Project AGENTS.md", cx);
                     Some(ContextMenu::build(window, cx, |mut menu, _window, _| {
                         menu = menu.context(menu_action_context.clone());
 
@@ -4855,15 +4861,15 @@ impl AgentPanel {
                                     }),
                                 )
                                 .separator()
-                                .header("Skills")
+                                .header(skills_label)
                                 .entry(
-                                    "Create Skill…",
+                                    create_skill_label,
                                     Some(Box::new(OpenRulesLibrary::default())),
                                     |window, cx| {
                                         window.dispatch_action(Box::new(OpenSkillCreator), cx);
                                     },
                                 )
-                                .entry("Manage Skills…", None, |window, cx| {
+                                .entry(manage_skills_label, None, |window, cx| {
                                     window.dispatch_action(
                                         Box::new(zed_actions::OpenSettingsAt {
                                             path: "agent.skills".to_string(),
@@ -4874,12 +4880,12 @@ impl AgentPanel {
                                 .separator();
 
                             if project_agents_md_path.is_some() || global_agents_md_loaded {
-                                menu = menu.header("Rules");
+                                menu = menu.header(rules_label);
 
                                 if global_agents_md_loaded {
                                     let workspace = workspace.clone();
                                     menu = menu.entry(
-                                        "Open Global AGENTS.md",
+                                        open_global_agents_label.clone(),
                                         None,
                                         move |window, cx| {
                                             workspace
@@ -4904,7 +4910,7 @@ impl AgentPanel {
                                 if let Some(path) = project_agents_md_path.clone() {
                                     let workspace = workspace.clone();
                                     menu = menu.entry(
-                                        "Open Project AGENTS.md",
+                                        open_project_agents_label.clone(),
                                         None,
                                         move |window, cx| {
                                             let path = path.clone();
