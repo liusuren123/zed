@@ -1,0 +1,151 @@
+syntax = "proto3";
+package zed.messages;
+
+message ReadFile {
+  uint64 project_id = 1;
+  uint64 worktree_id = 2;
+  string path = 3;
+  optional uint64 start_line = 4;
+  optional uint64 end_line = 5;
+  optional uint64 max_bytes = 6;
+}
+
+message ReadFileResponse {
+  string content = 1;
+  uint64 total_lines = 2;
+  uint64 file_size = 3;
+  uint64 modified_at = 4;
+  bool truncated = 5;
+}
+
+message ReadDirectory {
+  uint64 project_id = 1;
+  uint64 worktree_id = 2;
+  string path = 3;
+  uint32 depth = 4;
+  uint32 max_entries = 5;
+}
+
+message DirectoryEntry {
+  string name = 1;
+  bool is_directory = 2;
+  optional uint64 file_size = 3;
+  repeated DirectoryEntry children = 4;
+}
+
+message ReadDirectoryResponse {
+  repeated DirectoryEntry entries = 1;
+  bool truncated = 2;
+}
+
+message SearchFilesRequest {
+  uint64 project_id = 1;
+  string pattern = 2;
+  optional string path = 3;
+  bool is_regex = 4;
+  bool case_sensitive = 5;
+  uint32 max_results = 6;
+}
+
+message SearchFilesResponse {
+  repeated FileMatch matches = 1;
+  bool truncated = 2;
+}
+
+message FileMatch {
+  uint64 worktree_id = 1;
+  string path = 2;
+  uint64 line_number = 3;
+  string line_content = 4;
+  uint64 match_start = 5;
+  uint64 match_end = 6;
+}
+
+message SearchSymbolsRequest {
+  uint64 project_id = 1;
+  string query = 2;
+  uint32 max_results = 3;
+}
+
+message SymbolInfo {
+  string name = 1;
+  string kind = 2;
+  string path = 3;
+  uint64 line = 4;
+  uint64 column = 5;
+  optional string container_name = 6;
+}
+
+message SearchSymbolsResponse {
+  repeated SymbolInfo symbols = 1;
+}
+
+message GitStatusRequest {
+  uint64 project_id = 1;
+}
+
+message GitStatusResponse {
+  string branch = 1;
+  repeated GitFileChange changes = 2;
+  uint32 ahead = 3;
+  uint32 behind = 4;
+}
+
+message GitFileChange {
+  string path = 1;
+  string status = 2;
+}
+
+message BotBindRequest {
+  string bot_user_id = 1;
+  string access_token = 2;
+}
+
+message BotBindResponse {
+  bool success = 1;
+  optional string message = 2;
+}
+
+message ListWorkspacesRequest {}
+
+message WorkspaceInfo {
+  string workspace_id = 1;
+  string name = 2;
+  string host = 3;
+  repeated string root_paths = 4;
+}
+
+message ListWorkspacesResponse {
+  repeated WorkspaceInfo workspaces = 1;
+}
+
+message GenerateBotTokenRequest {}
+
+message GenerateBotTokenResponse {
+  string token = 1;
+}
+
+message RunCommandRequest {
+  uint64 project_id = 1;
+  string command = 2;
+  repeated string args = 3;
+  optional string cwd = 4;
+  uint32 timeout_secs = 5;
+}
+
+message RunCommandResponse {
+  int32 exit_code = 1;
+  string stdout = 2;
+  string stderr = 3;
+  bool timed_out = 4;
+}
+
+message AgentPromptRequest {
+  uint64 project_id = 1;
+  string prompt = 2;
+}
+
+message AgentPromptResponse {
+  string text = 1;
+  string stop_reason = 2;
+}

@@ -970,6 +970,7 @@ impl VsCodeSettings {
             ui_font_fallbacks: None,
             ui_font_features: None,
             ui_font_weight: None,
+            ui_language: None,
             buffer_font_family,
             buffer_font_fallbacks,
             buffer_font_size: self.read_f32("editor.fontSize").map(FontSize::from),
