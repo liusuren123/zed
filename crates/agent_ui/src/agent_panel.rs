@@ -4844,8 +4844,9 @@ impl AgentPanel {
                         if !showing_terminal {
                             menu = menu
                                 .header("MCP Servers")
+                                .action("Add Custom Server…", Box::new(AddContextServer))
                                 .action(
-                                    "View Server Extensions",
+                                    "Install New Servers…",
                                     Box::new(zed_actions::Extensions {
                                         category_filter: Some(
                                             zed_actions::ExtensionCategoryFilter::ContextServers,
@@ -4853,17 +4854,16 @@ impl AgentPanel {
                                         id: None,
                                     }),
                                 )
-                                .action("Add Custom Server…", Box::new(AddContextServer))
                                 .separator()
                                 .header("Skills")
                                 .entry(
-                                    "Create a Skill",
+                                    "Create Skill…",
                                     Some(Box::new(OpenRulesLibrary::default())),
                                     |window, cx| {
                                         window.dispatch_action(Box::new(OpenSkillCreator), cx);
                                     },
                                 )
-                                .entry("Manage Skills", None, |window, cx| {
+                                .entry("Manage Skills…", None, |window, cx| {
                                     window.dispatch_action(
                                         Box::new(zed_actions::OpenSettingsAt {
                                             path: "agent.skills".to_string(),
