@@ -243,6 +243,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         map.insert("AI", "人工智能");
         map.insert("Network", "网络");
         map.insert("Developer", "开发者");
+        map.insert("Feishu Bot", "飞书机器人");
 
         // ════════════════════════════════════════════════════════════════════
         // 三、设置分节标题（SectionHeader）
@@ -725,6 +726,57 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         // ── Network 页 ──────────────────────────────────────────────────────
         map.insert("Proxy", "代理");
         map.insert("Server URL", "服务器 URL");
+
+        // ── Feishu Bot 页 ───────────────────────────────────────────────────
+        map.insert("Enable Feishu Bot", "启用飞书机器人");
+        map.insert("App ID", "应用 ID");
+        map.insert("App Secret", "应用密钥");
+        map.insert("Bot Binding", "机器人绑定");
+        map.insert("Bot Status & Binding", "机器人状态与绑定");
+        map.insert("Generate Bot Token", "生成机器人令牌");
+        map.insert(
+            "Whether to enable the Feishu Bot integration for remote control.",
+            "是否启用飞书机器人集成以进行远程控制。",
+        );
+        map.insert(
+            "The Feishu application ID from the Feishu Open Platform.",
+            "来自飞书开放平台的应用 ID。",
+        );
+        map.insert(
+            "The Feishu application secret for API authentication.",
+            "用于 API 认证的飞书应用密钥。",
+        );
+        map.insert(
+            "View bot connection status, bind a bot with a token, or unbind.",
+            "查看机器人连接状态，使用令牌绑定机器人或解绑。",
+        );
+        map.insert(
+            "Generate a new bot token and copy it to the clipboard. Use this token to bind the bot via Feishu.",
+            "生成新的机器人令牌并复制到剪贴板。使用此令牌通过飞书绑定机器人。",
+        );
+        // Feishu Bot sub-page strings
+        map.insert("Bot Status", "机器人状态");
+        map.insert("Bind Bot", "绑定机器人");
+        map.insert("Unbind Bot", "解绑机器人");
+        map.insert(
+            "Generate a token from the command palette (\"Generate Bot Token\"), then paste it below and click Bind.",
+            "从命令面板生成令牌（\"生成机器人令牌\"），然后粘贴到下方并点击绑定。",
+        );
+        map.insert(
+            "Disconnect the bot from the current workspace. You can re-bind at any time with a new token.",
+            "断开机器人与当前工作区的连接。您可以随时使用新令牌重新绑定。",
+        );
+        map.insert("Bind", "绑定");
+        map.insert("Generate Token", "生成令牌");
+        map.insert("Unbind", "解绑");
+        map.insert("Yes", "是");
+        map.insert("No", "否");
+        map.insert("Connected", "已连接");
+        map.insert("Not Connected", "未连接");
+        map.insert("Enabled:", "已启用：");
+        map.insert("Bound:", "已绑定：");
+        map.insert("User:", "用户：");
+        map.insert("Workspace:", "工作区：");
 
         // ── Developer 页 ────────────────────────────────────────────────────
         map.insert("Performance Profiler", "性能分析器");

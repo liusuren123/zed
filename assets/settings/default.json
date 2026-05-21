@@ -1334,6 +1334,21 @@
     // If `enable_preview_file_from_code_navigation` or `enable_preview_multibuffer_from_code_navigation` is also true, the new tab may replace the existing one.
     "enable_keep_preview_on_code_navigation": false,
   },
+  // Configuration for the Feishu Bot remote control integration.
+  "feishu_bot": {
+    // Whether to enable the Feishu Bot integration.
+    "enabled": false,
+    // The Feishu application ID from the Feishu Open Platform.
+    "app_id": "",
+    // The Feishu application secret for API authentication.
+    "app_secret": "",
+    // Whether the bot is currently bound to a user.
+    "bound": false,
+    // The Feishu user identifier that the bot is bound to.
+    "bound_user_id": "",
+    // The workspace identifier the bot is bound to.
+    "bound_workspace": "",
+  },
   // Settings related to the file finder.
   "file_finder": {
     // Whether to show file icons in the file finder.

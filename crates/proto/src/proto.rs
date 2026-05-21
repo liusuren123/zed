@@ -392,6 +392,10 @@ messages!(
     (ListWorkspacesResponse, Foreground),
     (GenerateBotTokenRequest, Foreground),
     (GenerateBotTokenResponse, Foreground),
+    (RunCommandRequest, Background),
+    (RunCommandResponse, Background),
+    (AgentPromptRequest, Background),
+    (AgentPromptResponse, Background),
 );
 
 request_messages!(
@@ -612,6 +616,8 @@ request_messages!(
     (BotBindRequest, BotBindResponse),
     (ListWorkspacesRequest, ListWorkspacesResponse),
     (GenerateBotTokenRequest, GenerateBotTokenResponse),
+    (RunCommandRequest, RunCommandResponse),
+    (AgentPromptRequest, AgentPromptResponse),
 );
 
 lsp_messages!(

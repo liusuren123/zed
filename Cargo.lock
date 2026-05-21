@@ -6306,10 +6306,21 @@ name = "feishu_bot"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "futures 0.3.32",
+ "git",
+ "gpui",
  "log",
+ "project",
  "proto",
+ "regex",
+ "remote_server",
+ "rpc",
  "serde",
  "serde_json",
+ "shellexpand",
+ "smol",
+ "uuid",
+ "zed-reqwest",
 ]
 
 [[package]]

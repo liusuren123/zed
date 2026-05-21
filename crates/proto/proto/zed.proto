@@ -13,10 +13,10 @@ import "git.proto";
 import "image.proto";
 import "lsp.proto";
 import "notification.proto";
+import "remote_control.proto";
 import "task.proto";
 import "toolchain.proto";
 import "worktree.proto";
-import "remote_control.proto";
 
 // Looking for a number? Search "// current max"
 message Envelope {
@@ -503,7 +503,13 @@ message Envelope {
     ListWorkspacesResponse list_workspaces_response = 466;
 
     GenerateBotTokenRequest generate_bot_token_request = 467;
-    GenerateBotTokenResponse generate_bot_token_response = 468; // current max
+    GenerateBotTokenResponse generate_bot_token_response = 468;
+
+    RunCommandRequest run_command_request = 469;
+    RunCommandResponse run_command_response = 470;
+
+    AgentPromptRequest agent_prompt_request = 471;
+    AgentPromptResponse agent_prompt_response = 472; // current max
   }
 
   reserved 87 to 88;

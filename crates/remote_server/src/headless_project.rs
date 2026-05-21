@@ -49,7 +49,7 @@ use util::{ResultExt, paths::PathStyle, rel_path::RelPath};
 use worktree::Worktree;
 
 /// Global store for bot access tokens.
-static BOT_TOKENS: std::sync::LazyLock<std::sync::Mutex<HashSet<String>>> =
+pub static BOT_TOKENS: std::sync::LazyLock<std::sync::Mutex<HashSet<String>>> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(HashSet::default()));
 
 pub struct HeadlessProject {
@@ -306,6 +306,8 @@ impl HeadlessProject {
         session.add_request_handler(cx.weak_entity(), Self::handle_bot_bind);
         session.add_request_handler(cx.weak_entity(), Self::handle_list_workspaces);
         session.add_request_handler(cx.weak_entity(), Self::handle_generate_bot_token);
+        session.add_request_handler(cx.weak_entity(), Self::handle_run_command);
+        session.add_request_handler(cx.weak_entity(), Self::handle_agent_prompt);
 
         session.add_entity_request_handler(Self::handle_add_worktree);
         session.add_request_handler(cx.weak_entity(), Self::handle_remove_worktree);
@@ -1348,7 +1350,10 @@ impl HeadlessProject {
         let total_lines = content.lines().count() as u64;
 
         let metadata = fs.metadata(abs_path).await?;
-        let file_size = metadata.as_ref().map(|m| m.len).unwrap_or(content.len() as u64);
+        let file_size = metadata
+            .as_ref()
+            .map(|m| m.len)
+            .unwrap_or(content.len() as u64);
         let modified_at = metadata
             .and_then(|m| m.mtime.to_seconds_and_nanos_for_persistence())
             .map(|(secs, _nanos)| secs)
@@ -1370,7 +1375,12 @@ impl HeadlessProject {
             (text, false)
         };
 
-        log::info!("[AUDIT] Read file: path={} lines={} size={}", path, total_lines, file_size);
+        log::info!(
+            "[AUDIT] Read file: path={} lines={} size={}",
+            path,
+            total_lines,
+            file_size
+        );
         Ok(proto::ReadFileResponse {
             content: result_content,
             total_lines,
@@ -1388,14 +1398,22 @@ impl HeadlessProject {
         let path = shellexpand::tilde(&envelope.payload.path).to_string();
         let abs_path = std::path::Path::new(&path);
         let depth = envelope.payload.depth.max(1);
-        let max_entries = if envelope.payload.max_entries == 0 { 200 } else { envelope.payload.max_entries } as usize;
+        let max_entries = if envelope.payload.max_entries == 0 {
+            200
+        } else {
+            envelope.payload.max_entries
+        } as usize;
 
         let fs = cx.read_entity(&this, |this, _| this.fs.clone());
         let entries = collect_directory_entries(&fs, abs_path, depth).await?;
         let truncated = entries.len() >= max_entries;
         let entries = entries.into_iter().take(max_entries).collect::<Vec<_>>();
 
-        log::info!("[AUDIT] Read directory: path={} entries={}", path, entries.len());
+        log::info!(
+            "[AUDIT] Read directory: path={} entries={}",
+            path,
+            entries.len()
+        );
         Ok(proto::ReadDirectoryResponse { entries, truncated })
     }
 
@@ -1405,7 +1423,10 @@ impl HeadlessProject {
         _cx: AsyncApp,
     ) -> Result<proto::SearchFilesResponse> {
         log::info!("[AUDIT] Search files: pattern={}", envelope.payload.pattern);
-        Ok(proto::SearchFilesResponse { matches: Vec::new(), truncated: false })
+        Ok(proto::SearchFilesResponse {
+            matches: Vec::new(),
+            truncated: false,
+        })
     }
 
     async fn handle_search_symbols(
@@ -1414,7 +1435,9 @@ impl HeadlessProject {
         _cx: AsyncApp,
     ) -> Result<proto::SearchSymbolsResponse> {
         log::info!("[AUDIT] Search symbols: query={}", envelope.payload.query);
-        Ok(proto::SearchSymbolsResponse { symbols: Vec::new() })
+        Ok(proto::SearchSymbolsResponse {
+            symbols: Vec::new(),
+        })
     }
 
     async fn handle_git_status(
@@ -1423,7 +1446,12 @@ impl HeadlessProject {
         _cx: AsyncApp,
     ) -> Result<proto::GitStatusResponse> {
         log::info!("[AUDIT] Git status requested");
-        Ok(proto::GitStatusResponse { branch: String::new(), changes: Vec::new(), ahead: 0, behind: 0 })
+        Ok(proto::GitStatusResponse {
+            branch: String::new(),
+            changes: Vec::new(),
+            ahead: 0,
+            behind: 0,
+        })
     }
 
     async fn handle_bot_bind(
@@ -1445,9 +1473,15 @@ impl HeadlessProject {
         let valid = BOT_TOKENS.lock().unwrap().remove(access_token);
         if valid {
             log::info!("[AUDIT] Bot bind: user={} bound successfully", bot_user_id);
-            Ok(proto::BotBindResponse { success: true, message: None })
+            Ok(proto::BotBindResponse {
+                success: true,
+                message: None,
+            })
         } else {
-            log::warn!("[AUDIT] Bot bind rejected: user={} invalid token", bot_user_id);
+            log::warn!(
+                "[AUDIT] Bot bind rejected: user={} invalid token",
+                bot_user_id
+            );
             Ok(proto::BotBindResponse {
                 success: false,
                 message: Some("Invalid or expired token".to_string()),
@@ -1467,14 +1501,333 @@ impl HeadlessProject {
     }
 
     async fn handle_list_workspaces(
-        _this: Entity<Self>,
+        this: Entity<Self>,
         _envelope: TypedEnvelope<proto::ListWorkspacesRequest>,
-        _cx: AsyncApp,
+        cx: AsyncApp,
     ) -> Result<proto::ListWorkspacesResponse> {
-        log::info!("[AUDIT] List workspaces requested");
-        Ok(proto::ListWorkspacesResponse { workspaces: Vec::new() })
+        let worktrees = cx.read_entity(&this, |this, _cx| {
+            this.worktree_store
+                .read(_cx)
+                .visible_worktrees(_cx)
+                .map(|w| {
+                    let snapshot = w.read(_cx).snapshot();
+                    (
+                        snapshot.abs_path().to_path_buf(),
+                        snapshot.root_name_str().to_string(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        });
+
+        let root_paths: Vec<String> = worktrees
+            .iter()
+            .map(|(abs_path, _)| abs_path.display().to_string())
+            .collect();
+
+        let name = worktrees
+            .first()
+            .map(|(_, name)| name.clone())
+            .unwrap_or_else(|| "workspace".to_string());
+
+        let host = sysinfo::System::host_name().unwrap_or_else(|| "unknown".to_string());
+
+        let workspaces = if root_paths.is_empty() {
+            Vec::new()
+        } else {
+            vec![proto::WorkspaceInfo {
+                workspace_id: name.clone(),
+                name,
+                host,
+                root_paths,
+            }]
+        };
+
+        log::info!("[AUDIT] List workspaces: {} workspace(s)", workspaces.len());
+        Ok(proto::ListWorkspacesResponse { workspaces })
     }
 
+    async fn handle_agent_prompt(
+        this: Entity<Self>,
+        envelope: TypedEnvelope<proto::AgentPromptRequest>,
+        mut cx: AsyncApp,
+    ) -> Result<proto::AgentPromptResponse> {
+        let prompt_text = envelope.payload.prompt.clone();
+        log::info!("[AUDIT] Agent prompt: {}", prompt_text);
+
+        let agent_id = this.read_with(&cx, |project, cx| {
+            project
+                .agent_server_store
+                .read(cx)
+                .external_agents
+                .keys()
+                .next()
+                .cloned()
+        });
+
+        let Some(agent_id) = agent_id else {
+            return Ok(proto::AgentPromptResponse {
+                text: "No agent server configured. Add an agent in Settings > Agent.".to_string(),
+                stop_reason: "error".to_string(),
+            });
+        };
+
+        let agent_cmd = this
+            .update(&mut cx, |this, cx| {
+                this.agent_server_store.update(cx, |store, cx| {
+                    let agent = store
+                        .get_external_agent(&agent_id)
+                        .context("Agent server not found")?;
+                    anyhow::Ok(agent.get_command(vec![], HashMap::default(), &mut cx.to_async()))
+                })
+            })?
+            .await?;
+
+        let cwd = this.read_with(&cx, |project, cx| {
+            project
+                .worktree_store
+                .read(cx)
+                .visible_worktrees(cx)
+                .next()
+                .map(|w| w.read(cx).snapshot().abs_path().to_path_buf())
+        });
+
+        let result = Self::run_acp_prompt(
+            &agent_cmd.path,
+            &agent_cmd.args,
+            &agent_cmd.env.unwrap_or_default(),
+            cwd,
+            &prompt_text,
+        )
+        .await;
+
+        match result {
+            Ok((text, stop_reason)) => Ok(proto::AgentPromptResponse { text, stop_reason }),
+            Err(e) => Ok(proto::AgentPromptResponse {
+                text: format!("Agent prompt failed: {}", e),
+                stop_reason: "error".to_string(),
+            }),
+        }
+    }
+
+    /// Run a prompt through an ACP-compatible agent process using JSON-Lines protocol.
+    async fn run_acp_prompt(
+        program: &Path,
+        args: &[String],
+        env: &HashMap<String, String>,
+        cwd: Option<PathBuf>,
+        prompt: &str,
+    ) -> Result<(String, String)> {
+        use futures::AsyncWriteExt;
+        use smol::io::AsyncBufReadExt;
+
+        let mut cmd = smol::process::Command::new(program);
+        cmd.args(args);
+        for (k, v) in env {
+            cmd.env(k, v);
+        }
+        if let Some(ref dir) = cwd {
+            cmd.current_dir(dir);
+        }
+        cmd.stdin(std::process::Stdio::piped());
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+
+        let mut child = cmd.spawn()?;
+        let mut stdin = child.stdin.take().context("Failed to open stdin")?;
+        let stdout = child.stdout.take().context("Failed to open stdout")?;
+
+        let mut reader = smol::io::BufReader::new(stdout);
+
+        // Helper to read a single JSON line
+        async fn read_json_line(
+            reader: &mut smol::io::BufReader<smol::process::ChildStdout>,
+        ) -> Result<serde_json::Value> {
+            let mut line = String::new();
+            reader.read_line(&mut line).await?;
+            if line.is_empty() {
+                return Err(anyhow!("Agent closed connection unexpectedly"));
+            }
+            Ok(serde_json::from_str(line.trim())?)
+        }
+
+        // Step 1: Initialize
+        {
+            let init = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "1",
+                    "clientCapabilities": {},
+                    "clientInfo": { "name": "zed", "version": "0.0.0" }
+                }
+            });
+            let mut line = serde_json::to_string(&init)?;
+            line.push('\n');
+            stdin.write_all(line.as_bytes()).await?;
+            let _init_response = read_json_line(&mut reader).await?;
+        }
+
+        // Step 2: Create session
+        let session_id: String;
+        {
+            let cwd_str = cwd
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "/".to_string());
+            let session_req = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "session/new",
+                "params": { "cwd": cwd_str }
+            });
+            let mut line = serde_json::to_string(&session_req)?;
+            line.push('\n');
+            stdin.write_all(line.as_bytes()).await?;
+            let session_response = read_json_line(&mut reader).await?;
+            session_id = session_response["result"]["sessionId"]
+                .as_str()
+                .context("Missing sessionId in response")?
+                .to_string();
+        }
+
+        // Step 3: Send prompt
+        {
+            let prompt_req = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "session/prompt",
+                "params": {
+                    "sessionId": session_id,
+                    "prompt": [{ "type": "text", "text": prompt }]
+                }
+            });
+            let mut line = serde_json::to_string(&prompt_req)?;
+            line.push('\n');
+            stdin.write_all(line.as_bytes()).await?;
+        }
+
+        // Step 4: Read streaming updates and final response
+        let mut text_parts: Vec<String> = Vec::new();
+        let mut stop_reason = String::from("endTurn");
+        let timeout = std::time::Duration::from_secs(120);
+        let deadline = std::time::Instant::now() + timeout;
+
+        loop {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            if remaining.is_zero() {
+                stop_reason = "timeout".to_string();
+                break;
+            }
+
+            let read_result =
+                smol::future::or(async { read_json_line(&mut reader).await }, async {
+                    smol::Timer::after(remaining).await;
+                    Err(anyhow!("Agent prompt timed out"))
+                })
+                .await;
+
+            match read_result {
+                Ok(msg) => {
+                    if let Some(id) = msg.get("id").and_then(|v| v.as_i64()) {
+                        if id == 3 {
+                            if let Some(result) = msg.get("result") {
+                                if let Some(reason) =
+                                    result.get("stopReason").and_then(|v| v.as_str())
+                                {
+                                    stop_reason = reason.to_string();
+                                }
+                            }
+                            break;
+                        }
+                    } else if msg.get("method").and_then(|v| v.as_str()) == Some("session/update") {
+                        if let Some(params) = msg.get("params") {
+                            if let Some(update) = params.get("update") {
+                                if let Some(content) = update
+                                    .get("agentMessageChunk")
+                                    .or_else(|| update.get("agentThoughtChunk"))
+                                    .and_then(|c| c.get("content"))
+                                {
+                                    if let Some(text) = content.get("text").and_then(|v| v.as_str())
+                                    {
+                                        text_parts.push(text.to_string());
+                                    } else if let Some(text) = content.as_str() {
+                                        text_parts.push(text.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(_) => {
+                    stop_reason = "timeout".to_string();
+                    break;
+                }
+            }
+        }
+
+        let _ = child.kill();
+        Ok((text_parts.join(""), stop_reason))
+    }
+
+    async fn handle_run_command(
+        _this: Entity<Self>,
+        envelope: TypedEnvelope<proto::RunCommandRequest>,
+        _cx: AsyncApp,
+    ) -> Result<proto::RunCommandResponse> {
+        let command = &envelope.payload.command;
+        let args: Vec<&str> = envelope.payload.args.iter().map(|s| s.as_str()).collect();
+        let timeout_secs = envelope.payload.timeout_secs.max(1).min(300) as u64;
+        let timeout = std::time::Duration::from_secs(timeout_secs);
+
+        log::info!("[AUDIT] Run command: {} {:?}", command, args);
+
+        let mut cmd = smol::process::Command::new(command);
+        cmd.args(&args);
+        if let Some(ref cwd) = envelope.payload.cwd {
+            cmd.current_dir(cwd);
+        }
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+
+        let output = smol::future::or(
+            async {
+                let child = cmd.spawn()?;
+                child.output().await
+            },
+            async {
+                smol::Timer::after(timeout).await;
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "command timed out",
+                ))
+            },
+        )
+        .await;
+
+        match output {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                let exit_code = output.status.code().unwrap_or(-1);
+                Ok(proto::RunCommandResponse {
+                    exit_code,
+                    stdout,
+                    stderr,
+                    timed_out: false,
+                })
+            }
+            Err(e) => {
+                let timed_out = e.kind() == std::io::ErrorKind::TimedOut;
+                Ok(proto::RunCommandResponse {
+                    exit_code: -1,
+                    stdout: String::new(),
+                    stderr: e.to_string(),
+                    timed_out,
+                })
+            }
+        }
+    }
 }
 
 fn prompt_to_proto(
@@ -1493,7 +1846,7 @@ fn prompt_to_proto(
     }
 }
 
-async fn collect_directory_entries(
+pub async fn collect_directory_entries(
     fs: &Arc<dyn Fs>,
     path: &std::path::Path,
     depth: u32,
@@ -1504,7 +1857,9 @@ async fn collect_directory_entries(
     let mut response = fs.read_dir(path).await?;
     while let Some(entry) = response.next().await {
         let entry = entry?;
-        let Some(file_name) = entry.file_name() else { continue; };
+        let Some(file_name) = entry.file_name() else {
+            continue;
+        };
         let name = file_name.to_string_lossy().into_owned();
         let entry_path = path.join(&name);
         let is_directory = fs.is_dir(&entry_path).await;
@@ -1514,14 +1869,23 @@ async fn collect_directory_entries(
             fs.metadata(&entry_path).await.ok().flatten().map(|m| m.len)
         };
         let children = if is_directory && depth > 1 {
-            Box::pin(collect_directory_entries(fs, &entry_path, depth - 1)).await.unwrap_or_default()
+            Box::pin(collect_directory_entries(fs, &entry_path, depth - 1))
+                .await
+                .unwrap_or_default()
         } else {
             Vec::new()
         };
-        entries.push(proto::DirectoryEntry { name, is_directory, file_size, children });
+        entries.push(proto::DirectoryEntry {
+            name,
+            is_directory,
+            file_size,
+            children,
+        });
     }
     entries.sort_by(|a, b| {
-        a.is_directory.cmp(&b.is_directory).reverse()
+        a.is_directory
+            .cmp(&b.is_directory)
+            .reverse()
             .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
     });
     Ok(entries)
