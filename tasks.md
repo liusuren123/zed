@@ -10,8 +10,8 @@
 | 阶段 | 任务 | 状态 |
 |------|------|------|
 | 1 | Merge upstream/main → 获取 Skills 基础 + 各类修复 | ✅ Done |
-| 2 | Cherry-pick `agent-panel-menu-items` → Skills/Rules 菜单分组 | 🔄 In Progress |
-| 3 | Cherry-pick `create-skill-prevent-dupe` → 防重复 create-skill | ⬜ Pending |
+| 2 | Cherry-pick `agent-panel-menu-items` → Skills/Rules 菜单分组 | ✅ Done |
+| 3 | Cherry-pick `create-skill-prevent-dupe` → 防重复 create-skill | 🔄 In Progress |
 | 4 | Cherry-pick `martin/ai-234-lag` → Agent outline 渲染性能修复 | ⬜ Pending |
 | 5 | Cherry-pick `link-backticked-file-paths` → Agent 面板文件路径可点击 | ⬜ Pending |
 | 6 | Cherry-pick `martin/ai-233` → 空路径代码块渲染为文件引用 | ⬜ Pending |
