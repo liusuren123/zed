@@ -61,10 +61,10 @@ use std::{
 use theme::translate;
 use theme_settings::ThemeSettings;
 use ui::{
-    Color, ContextMenu, ContextMenuEntry, DecoratedIcon, Icon, IconDecoration, IconDecorationKind,
-    IndentGuideColors, IndentGuideLayout, Indicator, KeyBinding, Label, LabelSize, ListItem,
-    ListItemSpacing, ProjectEmptyState, ScrollAxes, ScrollableHandle, Scrollbars, StickyCandidate,
-    Tooltip, WithScrollbar, prelude::*, v_flex,
+    Color, ContextMenu, ContextMenuEntry, DecoratedIcon, Icon, IconButtonShape, IconDecoration,
+    IconDecorationKind, IndentGuideColors, IndentGuideLayout, Indicator, KeyBinding, Label,
+    LabelSize, ListItem, ListItemSpacing, ProjectEmptyState, ScrollAxes, ScrollableHandle,
+    Scrollbars, StickyCandidate, Tooltip, WithScrollbar, prelude::*, v_flex,
 };
 use util::{
     ResultExt, TakeUntilExt, TryFutureExt,
@@ -150,6 +150,7 @@ pub struct ProjectPanel {
     selection: Option<SelectedEntry>,
     context_menu: Option<(Entity<ContextMenu>, Point<Pixels>, Subscription)>,
     filename_editor: Entity<Editor>,
+    filter_editor: Entity<Editor>,
     clipboard: Option<ClipboardEntry>,
     _dragged_entry_destination: Option<Arc<Path>>,
     workspace: WeakEntity<Workspace>,
@@ -165,6 +166,7 @@ pub struct ProjectPanel {
     last_reported_update: Instant,
     update_visible_entries_task: UpdateVisibleEntriesTask,
     undo_manager: UndoManager,
+    filter_expanded: bool,
     state: State,
 }
 
@@ -728,6 +730,30 @@ impl ProjectPanel {
 
             let filename_editor = cx.new(|cx| Editor::single_line(window, cx));
 
+            let filter_editor = cx.new(|cx| {
+                let mut editor = Editor::single_line(window, cx);
+                editor.set_placeholder_text(&translate("Filter files by name…", cx), window, cx);
+                editor
+            });
+
+            cx.subscribe_in(
+                &filter_editor,
+                window,
+                |project_panel, filter_editor, event, window, cx| {
+                    if let editor::EditorEvent::BufferEdited = event {
+                        let has_query = !filter_editor.read(cx).text(cx).trim().is_empty();
+                        if has_query && !project_panel.filter_expanded {
+                            project_panel.expand_all_directories(window, cx);
+                            project_panel.filter_expanded = true;
+                        } else if !has_query && project_panel.filter_expanded {
+                            project_panel.filter_expanded = false;
+                        }
+                        cx.notify();
+                    }
+                },
+            )
+            .detach();
+
             cx.subscribe_in(
                 &filename_editor,
                 window,
@@ -813,6 +839,7 @@ impl ProjectPanel {
                 selection: None,
                 context_menu: None,
                 filename_editor,
+                filter_editor,
                 clipboard: None,
                 _dragged_entry_destination: None,
                 workspace: workspace.weak_handle(),
@@ -837,6 +864,7 @@ impl ProjectPanel {
                 },
                 update_visible_entries_task: Default::default(),
                 undo_manager: UndoManager::new(workspace.weak_handle(), weak_project_panel, &cx),
+                filter_expanded: false,
             };
             this.update_visible_entries(None, false, false, window, cx);
 
@@ -1557,6 +1585,31 @@ impl ProjectPanel {
                 }
             }
         });
+    }
+
+    fn expand_all_directories(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let all_dir_ids: Vec<(WorktreeId, ProjectEntryId)> = {
+            let project = self.project.read(cx);
+            let mut ids = Vec::new();
+            for worktree in project.visible_worktrees(cx) {
+                let worktree_id = worktree.read(cx).id();
+                let snapshot = worktree.read(cx).snapshot();
+                for entry in snapshot.entries(false, 0) {
+                    if entry.kind.is_dir() {
+                        ids.push((worktree_id, entry.id));
+                    }
+                }
+            }
+            ids
+        };
+
+        // Expand each directory and its ancestors
+        for (worktree_id, entry_id) in &all_dir_ids {
+            self.expand_all_for_entry(*worktree_id, *entry_id, cx);
+        }
+
+        // Rebuild visible entries to include newly expanded entries
+        self.update_visible_entries(None, false, false, window, cx);
     }
 
     fn collapse_all_for_entry(
@@ -4793,28 +4846,87 @@ impl ProjectPanel {
             &mut Context<ProjectPanel>,
         ),
     ) {
+        let query = self.query(cx);
         let mut ix = 0;
         for visible in &self.state.visible_entries {
             if ix >= range.end {
                 return;
             }
 
-            if ix + visible.entries.len() <= range.start {
-                ix += visible.entries.len();
+            let matching_count: usize = if let Some(ref query) = query {
+                visible
+                    .entries
+                    .iter()
+                    .filter(|e| Self::entry_matches_filter(e, query))
+                    .count()
+            } else {
+                visible.entries.len()
+            };
+
+            if ix + matching_count <= range.start {
+                ix += matching_count;
                 continue;
             }
 
-            let end_ix = range.end.min(ix + visible.entries.len());
-            let entry_range = range.start.saturating_sub(ix)..end_ix - ix;
             let entries = visible
                 .index
                 .get_or_init(|| visible.entries.iter().map(|e| e.path.clone()).collect());
-            let base_index = ix + entry_range.start;
-            for (i, entry) in visible.entries[entry_range].iter().enumerate() {
-                let global_index = base_index + i;
-                callback(entry, global_index, entries, window, cx);
+            let mut matching_index = 0;
+            for entry in visible.entries.iter() {
+                if let Some(ref query) = query {
+                    if !Self::entry_matches_filter(entry, query) {
+                        continue;
+                    }
+                }
+                let global_index = ix + matching_index;
+                if global_index >= range.end {
+                    break;
+                }
+                if global_index >= range.start {
+                    callback(entry, global_index, entries, window, cx);
+                }
+                matching_index += 1;
             }
-            ix = end_ix;
+            ix += matching_count;
+        }
+    }
+
+    fn query(&self, cx: &App) -> Option<String> {
+        let query = self.filter_editor.read(cx).text(cx);
+        if query.trim().is_empty() {
+            None
+        } else {
+            Some(query.trim().to_lowercase())
+        }
+    }
+
+    fn entry_matches_filter(entry: &GitEntry, query: &str) -> bool {
+        entry
+            .path
+            .file_name()
+            .map(|name| name.to_lowercase().contains(query))
+            .unwrap_or(false)
+    }
+
+    fn filtered_item_count(&self, cx: &App) -> usize {
+        if let Some(query) = self.query(cx) {
+            self.state
+                .visible_entries
+                .iter()
+                .map(|worktree| {
+                    worktree
+                        .entries
+                        .iter()
+                        .filter(|e| Self::entry_matches_filter(e, &query))
+                        .count()
+                })
+                .sum()
+        } else {
+            self.state
+                .visible_entries
+                .iter()
+                .map(|worktree| worktree.entries.len())
+                .sum()
         }
     }
 
@@ -4830,18 +4942,28 @@ impl ProjectPanel {
             &mut Context<ProjectPanel>,
         ),
     ) {
+        let query = self.query(cx);
         let mut ix = 0;
         for visible in &self.state.visible_entries {
             if ix >= range.end {
                 return;
             }
 
-            if ix + visible.entries.len() <= range.start {
-                ix += visible.entries.len();
+            let matching_count: usize = if let Some(ref query) = query {
+                visible
+                    .entries
+                    .iter()
+                    .filter(|e| Self::entry_matches_filter(e, query))
+                    .count()
+            } else {
+                visible.entries.len()
+            };
+
+            if ix + matching_count <= range.start {
+                ix += matching_count;
                 continue;
             }
 
-            let end_ix = range.end.min(ix + visible.entries.len());
             let git_status_setting = {
                 let settings = ProjectPanelSettings::get_global(cx);
                 settings.git_status
@@ -4854,11 +4976,24 @@ impl ProjectPanel {
                 let snapshot = worktree.read(cx).snapshot();
                 let root_name = snapshot.root_name();
 
-                let entry_range = range.start.saturating_sub(ix)..end_ix - ix;
                 let entries = visible
                     .index
                     .get_or_init(|| visible.entries.iter().map(|e| e.path.clone()).collect());
-                for entry in visible.entries[entry_range].iter() {
+                let mut matching_index = 0;
+                for entry in visible.entries.iter() {
+                    if let Some(ref query) = query {
+                        if !Self::entry_matches_filter(entry, query) {
+                            continue;
+                        }
+                    }
+                    let global_index = ix + matching_index;
+                    if global_index >= range.end {
+                        break;
+                    }
+                    matching_index += 1;
+                    if global_index < range.start {
+                        continue;
+                    }
                     let status = git_status_setting
                         .then_some(entry.git_summary)
                         .unwrap_or_default();
@@ -4934,7 +5069,7 @@ impl ProjectPanel {
                     callback(entry.id, details, window, cx);
                 }
             }
-            ix = end_ix;
+            ix += matching_count;
         }
     }
 
@@ -5311,6 +5446,47 @@ impl ProjectPanel {
         }
 
         false
+    }
+
+    fn build_filter_bar(
+        filter_editor: Entity<Editor>,
+        has_query: bool,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement + use<> {
+        let entity_id = cx.entity_id();
+        h_flex()
+            .px_2()
+            .py_1()
+            .border_b_1()
+            .border_color(cx.theme().colors().border)
+            .bg(cx.theme().colors().panel_background)
+            .child(
+                h_flex()
+                    .w_full()
+                    .gap_1p5()
+                    .child(
+                        Icon::new(IconName::MagnifyingGlass)
+                            .size(IconSize::Small)
+                            .color(Color::Muted),
+                    )
+                    .child(filter_editor.clone()),
+            )
+            .when(has_query, |this| {
+                this.child(
+                    IconButton::new("clear_filter", IconName::Close)
+                        .shape(IconButtonShape::Square)
+                        .tooltip(Tooltip::text(translate("Clear Filter", cx)))
+                        .on_click({
+                            let filter_editor = filter_editor.clone();
+                            move |_, window, cx: &mut App| {
+                                filter_editor.update(cx, |editor, cx| {
+                                    editor.set_text("", window, cx);
+                                });
+                                cx.notify(entity_id);
+                            }
+                        }),
+                )
+            })
     }
 
     fn render_entry(
@@ -6582,6 +6758,8 @@ fn item_width_estimate(depth: usize, item_text_chars: usize, is_symlink: bool) -
 
 impl Render for ProjectPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let has_query = self.query(cx).is_some();
+        let filter_bar = Self::build_filter_bar(self.filter_editor.clone(), has_query, cx);
         let has_worktree = !self.state.visible_entries.is_empty();
         let project = self.project.read(cx);
         let panel_settings = ProjectPanelSettings::get_global(cx);
@@ -6601,12 +6779,7 @@ impl Render for ProjectPanel {
         let is_local = project.is_local();
 
         if has_worktree {
-            let item_count = self
-                .state
-                .visible_entries
-                .iter()
-                .map(|worktree| worktree.entries.len())
-                .sum();
+            let item_count = self.filtered_item_count(cx);
 
             fn handle_drag_move<T: 'static>(
                 this: &mut ProjectPanel,
@@ -6757,6 +6930,7 @@ impl Render for ProjectPanel {
                 .track_focus(&self.focus_handle(cx))
                 .child(
                     v_flex()
+                        .child(filter_bar)
                         .child(
                             uniform_list("entries", item_count, {
                                 cx.processor(|this, range: Range<usize>, window, cx| {
