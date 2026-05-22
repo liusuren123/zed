@@ -28,12 +28,14 @@ pub use crate::schema::{
 };
 use crate::settings::adjust_buffer_font_size;
 pub use crate::settings::{
-    AgentBufferFontSize, AgentUiFontSize, BufferLineHeight, FontFamilyName, IconThemeName,
-    IconThemeSelection, ThemeAppearanceMode, ThemeName, ThemeSelection, ThemeSettings,
-    adjust_agent_buffer_font_size, adjust_agent_ui_font_size, adjust_ui_font_size,
-    adjusted_font_size, appearance_to_mode, clamp_font_size, default_theme,
-    observe_buffer_font_size_adjustment, reset_agent_buffer_font_size, reset_agent_ui_font_size,
-    reset_buffer_font_size, reset_ui_font_size, set_icon_theme, set_mode, set_theme, setup_ui_font,
+    AgentBufferFontSize, AgentUiFontSize, BufferLineHeight, FontFamilyName,
+    GitCommitBufferFontSize, IconThemeName, IconThemeSelection, ThemeAppearanceMode, ThemeName,
+    ThemeSelection, ThemeSettings, adjust_agent_buffer_font_size, adjust_agent_ui_font_size,
+    adjust_git_commit_buffer_font_size, adjust_ui_font_size, adjusted_font_size,
+    appearance_to_mode, clamp_font_size, default_theme, observe_buffer_font_size_adjustment,
+    reset_agent_buffer_font_size, reset_agent_ui_font_size, reset_buffer_font_size,
+    reset_git_commit_buffer_font_size, reset_ui_font_size, set_icon_theme, set_mode, set_theme,
+    setup_ui_font,
 };
 pub use theme::{GlobalUiLanguage, UiDensity, UiLanguage};
 
@@ -87,6 +89,7 @@ pub fn init(themes_to_load: LoadThemes, cx: &mut App) {
         prev_ui_font_size_settings,
         prev_agent_ui_font_size_settings,
         prev_agent_buffer_font_size_settings,
+        prev_git_commit_buffer_font_size_settings,
         prev_theme_name,
         prev_icon_theme_name,
         prev_ui_language_init,
@@ -99,6 +102,7 @@ pub fn init(themes_to_load: LoadThemes, cx: &mut App) {
             settings.ui_font_size_settings(),
             settings.agent_ui_font_size_settings(),
             settings.agent_buffer_font_size_settings(),
+            settings.git_commit_buffer_font_size_settings(),
             settings.theme.name(SystemAppearance::global(cx).0),
             settings.icon_theme.name(SystemAppearance::global(cx).0),
             settings.ui_language,
@@ -113,6 +117,7 @@ pub fn init(themes_to_load: LoadThemes, cx: &mut App) {
     let mut prev_ui_font_size_settings = prev_ui_font_size_settings;
     let mut prev_agent_ui_font_size_settings = prev_agent_ui_font_size_settings;
     let mut prev_agent_buffer_font_size_settings = prev_agent_buffer_font_size_settings;
+    let mut prev_git_commit_buffer_font_size_settings = prev_git_commit_buffer_font_size_settings;
     let mut prev_theme_name = prev_theme_name;
     let mut prev_icon_theme_name = prev_icon_theme_name;
     let mut prev_ui_language = prev_ui_language_init;
@@ -124,6 +129,7 @@ pub fn init(themes_to_load: LoadThemes, cx: &mut App) {
             ui_font_size_settings,
             agent_ui_font_size_settings,
             agent_buffer_font_size_settings,
+            git_commit_buffer_font_size_settings,
             theme_name,
             icon_theme_name,
             theme_overrides,
@@ -135,6 +141,7 @@ pub fn init(themes_to_load: LoadThemes, cx: &mut App) {
                 settings.ui_font_size_settings(),
                 settings.agent_ui_font_size_settings(),
                 settings.agent_buffer_font_size_settings(),
+                settings.git_commit_buffer_font_size_settings(),
                 settings.theme.name(SystemAppearance::global(cx).0),
                 settings.icon_theme.name(SystemAppearance::global(cx).0),
                 (
@@ -163,6 +170,11 @@ pub fn init(themes_to_load: LoadThemes, cx: &mut App) {
         if agent_buffer_font_size_settings != prev_agent_buffer_font_size_settings {
             prev_agent_buffer_font_size_settings = agent_buffer_font_size_settings;
             reset_agent_buffer_font_size(cx);
+        }
+
+        if git_commit_buffer_font_size_settings != prev_git_commit_buffer_font_size_settings {
+            prev_git_commit_buffer_font_size_settings = git_commit_buffer_font_size_settings;
+            reset_git_commit_buffer_font_size(cx);
         }
 
         if theme_name != prev_theme_name || theme_overrides != prev_theme_overrides {
