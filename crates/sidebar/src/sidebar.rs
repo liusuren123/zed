@@ -1610,6 +1610,12 @@ impl Sidebar {
                 }
             }
 
+            if is_active
+                && let Some(ActiveEntry::Thread { thread_id, .. }) = self.active_entry.as_ref()
+            {
+                notified_threads.remove(thread_id);
+            }
+
             let has_visible_rows = !threads.is_empty() || !terminals.is_empty();
             let has_stored_thread_rows = !should_load_threads && !has_visible_rows && {
                 let store = ThreadMetadataStore::global(cx).read(cx);
