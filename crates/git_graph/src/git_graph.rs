@@ -1118,6 +1118,8 @@ pub struct GitGraph {
     hovered_entry_idx: Option<usize>,
     graph_canvas_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     log_source: LogSource,
+    /// Whether the graph is filtered to show only commits on the currently checked-out branch.
+    current_branch_only: bool,
     log_order: LogOrder,
     selected_commit_diff: Option<CommitDiff>,
     selected_commit_diff_stats: Option<(usize, usize)>,
@@ -1341,6 +1343,7 @@ impl GitGraph {
             selected_commit_diff: None,
             selected_commit_diff_stats: None,
             log_source,
+            current_branch_only: false,
             log_order,
             commit_details_split_state: cx.new(|_cx| SplitState::new()),
             repo_id,
@@ -1451,6 +1454,32 @@ impl GitGraph {
     fn get_repository(&self, cx: &App) -> Option<Entity<Repository>> {
         let git_store = self.git_store.read(cx);
         git_store.repositories().get(&self.repo_id).cloned()
+    }
+
+    fn can_filter_by_branch(&self) -> bool {
+        matches!(self.log_source, LogSource::All) || self.current_branch_only
+    }
+
+    fn toggle_branch_filter(&mut self, cx: &mut Context<Self>) {
+        if self.current_branch_only {
+            self.current_branch_only = false;
+            self.log_source = LogSource::All;
+            self.invalidate_state(cx);
+            self.fetch_initial_graph_data(cx);
+        } else if let Some(repo) = self.get_repository(cx) {
+            let branch_name = repo
+                .read(cx)
+                .snapshot()
+                .branch
+                .as_ref()
+                .map(|b| b.name().to_string());
+            if let Some(branch_name) = branch_name {
+                self.current_branch_only = true;
+                self.log_source = LogSource::Branch(branch_name.into());
+                self.invalidate_state(cx);
+                self.fetch_initial_graph_data(cx);
+            }
+        }
     }
 
     fn has_context_menu(&self) -> bool {
@@ -2377,6 +2406,29 @@ impl GitGraph {
                         query_focus_handle,
                     )),
             )
+            .when(self.can_filter_by_branch(), |this| {
+                let is_active = self.current_branch_only;
+                let icon_color = if is_active {
+                    Color::Accent
+                } else {
+                    Color::Muted
+                };
+                let toggle_tooltip = if is_active {
+                    "Show all branches"
+                } else {
+                    "Show current branch only"
+                };
+                this.child(
+                    IconButton::new("git-graph-branch-filter", IconName::GitBranch)
+                        .shape(ui::IconButtonShape::Square)
+                        .icon_size(IconSize::Small)
+                        .icon_color(icon_color)
+                        .tooltip(move |window, cx| Tooltip::text(toggle_tooltip)(window, cx))
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.toggle_branch_filter(cx);
+                        })),
+                )
+            })
             .child(
                 h_flex()
                     .min_w_64()
@@ -3862,8 +3914,16 @@ impl workspace::SerializableItem for GitGraph {
             Some(search_query)
         };
 
-        let log_source_type = Some(persistence::serialize_log_source_type(&self.log_source));
-        let log_source_value = persistence::serialize_log_source_value(&self.log_source);
+        let log_source_for_serialization = if self.current_branch_only {
+            LogSource::All
+        } else {
+            self.log_source.clone()
+        };
+        let log_source_type = Some(persistence::serialize_log_source_type(
+            &log_source_for_serialization,
+        ));
+        let log_source_value =
+            persistence::serialize_log_source_value(&log_source_for_serialization);
         let log_order = Some(persistence::serialize_log_order(&self.log_order));
         let search_case_sensitive = Some(self.search_state.case_sensitive);
 
