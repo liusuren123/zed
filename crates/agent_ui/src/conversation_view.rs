@@ -56,6 +56,7 @@ use std::time::Instant;
 use std::{collections::BTreeMap, rc::Rc, time::Duration};
 use terminal_view::terminal_panel::TerminalPanel;
 use text::Anchor;
+use theme::translate;
 use theme_settings::{AgentBufferFontSize, AgentUiFontSize};
 use ui::{
     Callout, CircularProgress, CommonAnimationExt, ContextMenu, ContextMenuEntry, CopyButton,
@@ -1390,7 +1391,7 @@ impl ConversationView {
             ServerState::Connected(view) => view
                 .active_view()
                 .and_then(|v| v.read(cx).thread.read(cx).title())
-                .unwrap_or_else(|| DEFAULT_THREAD_TITLE.into()),
+                .unwrap_or_else(|| translate(DEFAULT_THREAD_TITLE, cx).into()),
             ServerState::Loading { .. } => "Loading…".into(),
             ServerState::LoadError { error, .. } => match error {
                 LoadError::Unsupported { .. } => {
@@ -1714,7 +1715,7 @@ impl ConversationView {
                         .unwrap_or_else(|| self.agent.agent_id().0.to_string().into());
 
                     let new_placeholder =
-                        placeholder_text(agent_display_name.as_ref(), has_slash_completions);
+                        placeholder_text(agent_display_name.as_ref(), has_slash_completions, cx);
 
                     thread_view.update(cx, |thread_view, cx| {
                         let mut session_capabilities = thread_view.session_capabilities.write();
@@ -3026,19 +3027,14 @@ fn native_available_skills(
         .collect()
 }
 
-fn placeholder_text(agent_name: &str, has_commands: bool) -> String {
+fn placeholder_text(agent_name: &str, has_commands: bool, cx: &App) -> String {
     if agent_name == agent::ZED_AGENT_ID.as_ref() {
-        format!(
-            "Message the {}, @ to include context, / for commands",
-            agent_name
-        )
+        translate("Message the Zed Agent — @ to include context", cx).to_string()
     } else if has_commands {
-        format!(
-            "Message {} — @ to include context, / for commands",
-            agent_name
-        )
+        translate("Message {name} — @ to include context, / for commands", cx)
+            .replace("{name}", agent_name)
     } else {
-        format!("Message {} — @ to include context", agent_name)
+        translate("Message {name} — @ to include context", cx).replace("{name}", agent_name)
     }
 }
 

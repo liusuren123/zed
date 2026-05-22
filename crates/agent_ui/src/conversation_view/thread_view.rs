@@ -401,7 +401,7 @@ impl ThreadView {
         let parent_session_id = thread.read(cx).parent_session_id().cloned();
 
         let has_slash_completions = session_capabilities.read().has_slash_completions();
-        let placeholder = placeholder_text(agent_display_name.as_ref(), has_slash_completions);
+        let placeholder = placeholder_text(agent_display_name.as_ref(), has_slash_completions, cx);
 
         let mut should_auto_submit = false;
         let mut show_external_source_prompt_warning = false;
