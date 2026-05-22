@@ -40,22 +40,22 @@ use language_model::{LanguageModelCompletionError, LanguageModelRegistry};
 use markdown::{
     CodeBlockRenderer, CopyButtonVisibility, Markdown, MarkdownElement, MarkdownFont, MarkdownStyle,
 };
-use parking_lot::RwLock;
-use project::{AgentId, AgentServerStore, Project, ProjectEntryId};
+use parking_lot::{Mutex, RwLock};
+use project::{AgentId, AgentServerStore, Project, ProjectEntryId, ProjectPath};
 use prompt_store::{PromptId, PromptStore};
 
 use crate::message_editor::SessionCapabilities;
 use crate::{AgentThreadSource, DEFAULT_THREAD_TITLE, resolve_agent_image};
+use lru::LruCache;
 use rope::Point;
 use settings::{NotifyWhenAgentWaiting, Settings as _, SettingsStore, ThinkingBlockDisplay};
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::Instant;
 use std::{collections::BTreeMap, rc::Rc, time::Duration};
 use terminal_view::terminal_panel::TerminalPanel;
 use text::Anchor;
-use theme::translate;
 use theme_settings::{AgentBufferFontSize, AgentUiFontSize};
 use ui::{
     Callout, CircularProgress, CommonAnimationExt, ContextMenu, ContextMenuEntry, CopyButton,
@@ -73,6 +73,7 @@ use util::{
 use workspace::PathList;
 use workspace::{
     CollaboratorId, MultiWorkspace, NewTerminal, Toast, Workspace, notifications::NotificationId,
+    path_link::sanitize_path_text,
 };
 use zed_actions::agent::{Chat, ToggleModelSelector};
 use zed_actions::assistant::OpenRulesLibrary;
@@ -516,6 +517,9 @@ pub struct ConversationView {
     /// causes mermaid diagrams to re-render).
     last_theme_id: Option<String>,
     draft_prompt_persist_task: Option<Task<()>>,
+    /// Cache + worktree snapshot for resolving paths in markdown code spans.
+    /// Shared with the child [`ThreadView`] when one is constructed.
+    pub(crate) code_span_resolver: AgentCodeSpanResolver,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -714,7 +718,8 @@ impl ConversationView {
         cx: &mut Context<Self>,
     ) -> Self {
         let agent_server_store = project.read(cx).agent_server_store().clone();
-        let subscriptions = vec![
+        let code_span_resolver = AgentCodeSpanResolver::new(&project.downgrade(), cx);
+        let mut subscriptions = vec![
             cx.observe_global_in::<SettingsStore>(window, Self::agent_ui_font_size_changed),
             cx.observe_global_in::<SettingsStore>(window, Self::invalidate_mermaid_caches),
             cx.observe_global_in::<AgentUiFontSize>(window, Self::agent_ui_font_size_changed),
@@ -725,6 +730,20 @@ impl ConversationView {
                 Self::handle_agent_servers_updated,
             ),
         ];
+        subscriptions.push(cx.subscribe(&project, {
+            let resolver = code_span_resolver.clone();
+            move |_this: &mut Self, _project, event: &project::Event, cx| {
+                if matches!(
+                    event,
+                    project::Event::WorktreeAdded(_)
+                        | project::Event::WorktreeRemoved(_)
+                        | project::Event::WorktreeUpdatedEntries(_, _)
+                ) {
+                    resolver.clear_cache();
+                    cx.notify();
+                }
+            }
+        }));
 
         cx.on_release(|this, cx| {
             if let Some(connected) = this.as_connected() {
@@ -771,6 +790,7 @@ impl ConversationView {
             auth_task: None,
             last_theme_id: Some(cx.theme().id.clone()),
             draft_prompt_persist_task: None,
+            code_span_resolver,
             _subscriptions: subscriptions,
             focus_handle: cx.focus_handle(),
         }
@@ -1225,6 +1245,7 @@ impl ConversationView {
                 session_capabilities,
                 resumed_without_history,
                 self.project.downgrade(),
+                self.code_span_resolver.clone(),
                 self.thread_store.clone(),
                 self.prompt_store.clone(),
                 initial_content,
@@ -1369,7 +1390,7 @@ impl ConversationView {
             ServerState::Connected(view) => view
                 .active_view()
                 .and_then(|v| v.read(cx).thread.read(cx).title())
-                .unwrap_or_else(|| translate(DEFAULT_THREAD_TITLE, cx).into()),
+                .unwrap_or_else(|| DEFAULT_THREAD_TITLE.into()),
             ServerState::Loading { .. } => "Loading…".into(),
             ServerState::LoadError { error, .. } => match error {
                 LoadError::Unsupported { .. } => {
@@ -1693,7 +1714,7 @@ impl ConversationView {
                         .unwrap_or_else(|| self.agent.agent_id().0.to_string().into());
 
                     let new_placeholder =
-                        placeholder_text(agent_display_name.as_ref(), has_slash_completions, cx);
+                        placeholder_text(agent_display_name.as_ref(), has_slash_completions);
 
                     thread_view.update(cx, |thread_view, cx| {
                         let mut session_capabilities = thread_view.session_capabilities.write();
@@ -2518,7 +2539,7 @@ impl ConversationView {
             markdown,
             style,
             &self.workspace,
-            &self.project.downgrade(),
+            &self.code_span_resolver,
             cx,
         )
     }
@@ -3005,14 +3026,19 @@ fn native_available_skills(
         .collect()
 }
 
-fn placeholder_text(agent_name: &str, has_commands: bool, cx: &App) -> String {
+fn placeholder_text(agent_name: &str, has_commands: bool) -> String {
     if agent_name == agent::ZED_AGENT_ID.as_ref() {
-        translate("Use @ to include context, / for commands", cx).to_string()
+        format!(
+            "Message the {}, @ to include context, / for commands",
+            agent_name
+        )
     } else if has_commands {
-        translate("Message {name} — @ to include context, / for commands", cx)
-            .replace("{name}", agent_name)
+        format!(
+            "Message {} — @ to include context, / for commands",
+            agent_name
+        )
     } else {
-        translate("Message {name} — @ to include context", cx).replace("{name}", agent_name)
+        format!("Message {} — @ to include context", agent_name)
     }
 }
 
@@ -3120,21 +3146,12 @@ fn render_agent_markdown(
     markdown: Entity<Markdown>,
     style: MarkdownStyle,
     workspace: &WeakEntity<Workspace>,
-    project: &WeakEntity<Project>,
+    code_span_resolver: &AgentCodeSpanResolver,
     cx: &App,
 ) -> MarkdownElement {
     let workspace = workspace.clone();
-    let resolver = AgentCodeSpanResolver::new(project, cx);
-    let worktree_roots: Vec<PathBuf> = project
-        .upgrade()
-        .map(|project| {
-            project
-                .read(cx)
-                .visible_worktrees(cx)
-                .map(|worktree| worktree.read(cx).abs_path().to_path_buf())
-                .collect()
-        })
-        .unwrap_or_default();
+    let worktree_roots = code_span_resolver.worktree_roots(cx);
+    let resolver = code_span_resolver.clone();
     MarkdownElement::new(markdown, style)
         .code_block_renderer(markdown::CodeBlockRenderer::Default {
             copy_button_visibility: markdown::CopyButtonVisibility::VisibleOnHover,
@@ -3145,135 +3162,159 @@ fn render_agent_markdown(
         .on_url_click(move |text, window, cx| {
             thread_view::open_link(text, &workspace, window, cx);
         })
-        .on_code_span_link(move |text| resolver.try_resolve(text))
+        .on_code_span_link(move |text, cx| resolver.try_resolve(text, cx))
 }
 
-struct AgentCodeSpanResolver {
-    worktrees: Vec<AgentCodeSpanWorktree>,
-    file_extensions: HashSet<Arc<str>>,
-    call_count: AtomicUsize,
-    total_work_nanos: AtomicU64,
+/// Shared, cloneable handle for resolving inline markdown code spans like
+/// `` `src/main.rs:42` `` to clickable workspace file links.
+#[derive(Clone)]
+pub(crate) struct AgentCodeSpanResolver {
+    inner: Arc<AgentCodeSpanResolverInner>,
 }
 
-struct AgentCodeSpanWorktree {
-    abs_path: PathBuf,
-    path_style: PathStyle,
-    files: HashSet<Arc<RelPath>>,
+/// Maximum number of memoized code-span resolutions kept in the cache.
+const CODE_SPAN_CACHE_CAPACITY: NonZeroUsize = match NonZeroUsize::new(2048) {
+    Some(n) => n,
+    None => unreachable!(),
+};
+
+struct AgentCodeSpanResolverInner {
+    project: WeakEntity<Project>,
+    cache: Mutex<LruCache<Arc<str>, Option<SharedString>>>,
 }
 
 impl AgentCodeSpanResolver {
-    fn new(project: &WeakEntity<Project>, cx: &App) -> Self {
-        let Some(project) = project.upgrade() else {
-            return Self {
-                worktrees: Vec::new(),
-                file_extensions: HashSet::default(),
-                call_count: AtomicUsize::new(0),
-                total_work_nanos: AtomicU64::new(0),
-            };
-        };
-
-        let mut file_extensions = HashSet::default();
-        let mut worktrees = Vec::new();
-        for worktree in project.read(cx).visible_worktrees(cx) {
-            let worktree = worktree.read(cx);
-            let mut files = HashSet::default();
-            for entry in worktree.entries(false, 0) {
-                if !entry.is_file() {
-                    continue;
-                }
-
-                if let Some(extension) = entry
-                    .path
-                    .as_std_path()
-                    .extension()
-                    .and_then(|extension| extension.to_str())
-                    .filter(|extension| !extension.is_empty())
-                {
-                    file_extensions.insert(Arc::from(extension));
-                }
-                files.insert(entry.path.clone());
-            }
-
-            worktrees.push(AgentCodeSpanWorktree {
-                abs_path: worktree.abs_path().to_path_buf(),
-                path_style: worktree.path_style(),
-                files,
-            });
-        }
-
+    pub(crate) fn new(project: &WeakEntity<Project>, _cx: &App) -> Self {
         Self {
-            worktrees,
-            file_extensions,
-            call_count: AtomicUsize::new(0),
-            total_work_nanos: AtomicU64::new(0),
+            inner: Arc::new(AgentCodeSpanResolverInner {
+                project: project.clone(),
+                cache: Mutex::new(LruCache::new(CODE_SPAN_CACHE_CAPACITY)),
+            }),
         }
     }
 
-    fn try_resolve(&self, text: &str) -> Option<SharedString> {
-        let text = workspace::path_link::sanitize_path_text(text.trim());
-        if !self.is_path_like(text) {
+    pub(crate) fn clear_cache(&self) {
+        self.inner.cache.lock().clear();
+    }
+
+    /// Absolute paths of every current worktree.
+    /// Used by the markdown image resolver, which needs the same set of roots.
+    fn worktree_roots(&self, cx: &App) -> Vec<PathBuf> {
+        self.inner
+            .project
+            .upgrade()
+            .map(|project| {
+                project
+                    .read(cx)
+                    .visible_worktrees(cx)
+                    .map(|worktree| worktree.read(cx).abs_path().to_path_buf())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn try_resolve(&self, text: &str, cx: &App) -> Option<SharedString> {
+        let trimmed = sanitize_path_text(text.trim());
+        if !Self::is_path_like(trimmed) {
             return None;
         }
 
-        let path_with_position = PathWithPosition::parse_str(text);
+        if let Some(cached) = self.inner.cache.lock().get(trimmed).cloned() {
+            return cached;
+        }
+
+        let resolved = self.resolve_uncached(trimmed, cx);
+        self.inner
+            .cache
+            .lock()
+            .push(Arc::from(trimmed), resolved.clone());
+        resolved
+    }
+
+    fn resolve_uncached(&self, trimmed: &str, cx: &App) -> Option<SharedString> {
+        let path_with_position = PathWithPosition::parse_str(trimmed);
         let candidate_path = &path_with_position.path;
         if candidate_path.as_os_str().is_empty() {
             return None;
         }
 
-        let count = self.call_count.fetch_add(1, Ordering::Relaxed) + 1;
-
-        let mut worktrees_inspected = 0usize;
-        let walk_started_at = Instant::now();
-        let result = 'walk: {
-            for worktree in &self.worktrees {
-                let Some(relative_path) = worktree.relative_path(candidate_path) else {
+        let project = self.inner.project.upgrade()?;
+        let project = project.read(cx);
+        for worktree in project.visible_worktrees(cx) {
+            let worktree = worktree.read(cx);
+            for relative_path in Self::candidate_relative_paths(
+                candidate_path,
+                &worktree.abs_path(),
+                worktree.path_style(),
+            ) {
+                let project_path = ProjectPath {
+                    worktree_id: worktree.id(),
+                    path: relative_path.clone(),
+                };
+                let Some(entry) = project.entry_for_path(&project_path, cx) else {
                     continue;
                 };
-                worktrees_inspected += 1;
-                if !worktree.files.contains(relative_path.as_ref()) {
+                if !entry.is_file() {
                     continue;
                 }
 
-                let abs_path = worktree.absolutize(relative_path.as_ref());
-                let mention = if let Some(row) = path_with_position.row {
-                    let Some(line) = row.checked_sub(1) else {
-                        break 'walk None;
-                    };
-                    MentionUri::Selection {
+                let abs_path = worktree.absolutize(&relative_path);
+                let mention = match path_with_position.row.and_then(|row| row.checked_sub(1)) {
+                    Some(line) => MentionUri::Selection {
                         abs_path: Some(abs_path),
                         line_range: line..=line,
-                    }
-                } else {
-                    MentionUri::File { abs_path }
+                        column: path_with_position
+                            .column
+                            .map(|column| column.saturating_sub(1)),
+                    },
+                    None => MentionUri::File { abs_path },
                 };
 
-                break 'walk Some(mention.to_uri().to_string().into());
+                return Some(mention.to_uri().to_string().into());
             }
-            None
-        };
-        let walk_elapsed = walk_started_at.elapsed();
+        }
 
-        let cumulative_nanos = self
-            .total_work_nanos
-            .fetch_add(walk_elapsed.as_nanos() as u64, Ordering::Relaxed)
-            + walk_elapsed.as_nanos() as u64;
-        let cumulative = Duration::from_nanos(cumulative_nanos);
-        let outcome = if result.is_some() { "hit" } else { "miss" };
-        log::info!(
-            "AgentCodeSpanResolver::try_resolve #{count} {outcome}: \
-             worktree walk took {walk_elapsed:?} \
-             ({worktrees_inspected}/{total_worktrees} worktrees inspected); \
-             cumulative walk {cumulative:?}",
-            total_worktrees = self.worktrees.len(),
-        );
-
-        result
+        None
     }
 
-    fn is_path_like(&self, text: &str) -> bool {
-        if text.is_empty()
+    fn candidate_relative_paths(
+        path: &Path,
+        worktree_abs_path: &Path,
+        path_style: PathStyle,
+    ) -> Vec<Arc<RelPath>> {
+        let path_text = path.to_string_lossy();
+        let relative_path: Option<Arc<RelPath>> =
+            if util::paths::is_absolute(path_text.as_ref(), path_style) {
+                path_style
+                    .strip_prefix(path, worktree_abs_path)
+                    .map(std::borrow::Cow::into_owned)
+                    .map(Into::into)
+            } else {
+                RelPath::new(path, path_style)
+                    .ok()
+                    .map(std::borrow::Cow::into_owned)
+                    .map(Into::into)
+            };
+
+        let Some(relative_path) = relative_path else {
+            return Vec::new();
+        };
+
+        let mut paths = vec![relative_path.clone()];
+        if let Some(root_name) = worktree_abs_path.file_name().and_then(|name| name.to_str())
+            && let Ok(root_name) = RelPath::new(Path::new(root_name), path_style)
+            && let Ok(stripped) = relative_path.strip_prefix(root_name.as_ref())
+            && !stripped.is_empty()
+        {
+            paths.push(Arc::from(stripped));
+        }
+        paths
+    }
+
+    fn is_path_like(text: &str) -> bool {
+        if text.len() < 3
             || text.contains("://")
+            || text.contains('|')
             || text.chars().any(char::is_control)
             || text.chars().all(|character| character.is_ascii_digit())
         {
@@ -3288,39 +3329,7 @@ impl AgentCodeSpanResolver {
 
         path.extension()
             .and_then(|extension| extension.to_str())
-            .is_some_and(|extension| self.file_extensions.contains(extension))
-    }
-}
-
-impl AgentCodeSpanWorktree {
-    fn relative_path(&self, path: &Path) -> Option<Arc<RelPath>> {
-        let path_text = path.to_string_lossy();
-        if util::paths::is_absolute(path_text.as_ref(), self.path_style) {
-            self.path_style
-                .strip_prefix(path, &self.abs_path)
-                .map(std::borrow::Cow::into_owned)
-                .map(Into::into)
-        } else {
-            RelPath::new(path, self.path_style)
-                .ok()
-                .map(std::borrow::Cow::into_owned)
-                .map(Into::into)
-        }
-    }
-
-    fn absolutize(&self, relative_path: &RelPath) -> PathBuf {
-        if relative_path.file_name().is_some() {
-            let mut abs_path = self.abs_path.to_string_lossy().into_owned();
-            for component in relative_path.components() {
-                if !abs_path.ends_with(self.path_style.primary_separator()) {
-                    abs_path.push_str(self.path_style.primary_separator());
-                }
-                abs_path.push_str(component);
-            }
-            PathBuf::from(abs_path)
-        } else {
-            self.abs_path.clone()
-        }
+            .is_some_and(|extension| !extension.is_empty())
     }
 }
 
@@ -3455,20 +3464,61 @@ pub(crate) mod tests {
         let project = Project::test(fs, [Path::new(util::path!("/project"))], cx).await;
         let resolver = cx.update(|cx| AgentCodeSpanResolver::new(&project.downgrade(), cx));
 
-        let uri = resolver
-            .try_resolve("src/main.rs:10")
+        let uri = cx
+            .update(|cx| resolver.try_resolve("src/main.rs:10", cx))
             .expect("expected worktree-relative file path to resolve");
         assert_eq!(
             MentionUri::parse(&uri, PathStyle::local()).unwrap(),
             MentionUri::Selection {
                 abs_path: Some(PathBuf::from(util::path!("/project/src/main.rs"))),
                 line_range: 9..=9,
+                column: None,
             }
         );
 
-        assert!(resolver.try_resolve("String").is_none());
-        assert!(resolver.try_resolve("does/not/exist.rs").is_none());
-        assert!(resolver.try_resolve("src/main.rs.").is_some());
+        let uri = cx
+            .update(|cx| resolver.try_resolve("src/main.rs:10:5", cx))
+            .expect("expected worktree-relative file path with row and column to resolve");
+        assert_eq!(
+            MentionUri::parse(&uri, PathStyle::local()).unwrap(),
+            MentionUri::Selection {
+                abs_path: Some(PathBuf::from(util::path!("/project/src/main.rs"))),
+                line_range: 9..=9,
+                column: Some(4),
+            }
+        );
+
+        let uri = cx
+            .update(|cx| resolver.try_resolve("src/main.rs:0", cx))
+            .expect("`:0` should fall back to a file mention instead of returning None");
+        assert_eq!(
+            MentionUri::parse(&uri, PathStyle::local()).unwrap(),
+            MentionUri::File {
+                abs_path: PathBuf::from(util::path!("/project/src/main.rs")),
+            }
+        );
+
+        assert!(cx.update(|cx| resolver.try_resolve("String", cx)).is_none());
+        assert!(
+            cx.update(|cx| resolver.try_resolve("does/not/exist.rs", cx))
+                .is_none()
+        );
+        assert!(
+            cx.update(|cx| resolver.try_resolve("src/main.rs.", cx))
+                .is_some()
+        );
+
+        let uri = cx
+            .update(|cx| resolver.try_resolve("project/src/main.rs:10", cx))
+            .expect("expected root-prefixed worktree path to resolve");
+        assert_eq!(
+            MentionUri::parse(&uri, PathStyle::local()).unwrap(),
+            MentionUri::Selection {
+                abs_path: Some(PathBuf::from(util::path!("/project/src/main.rs"))),
+                line_range: 9..=9,
+                column: None,
+            }
+        );
     }
 
     #[gpui::test]

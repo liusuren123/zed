@@ -167,6 +167,7 @@ impl MentionSet {
             MentionUri::Selection {
                 abs_path: Some(abs_path),
                 line_range,
+                ..
             } => self.confirm_mention_for_symbol(abs_path, line_range, cx),
             MentionUri::Selection { abs_path: None, .. } => Task::ready(Err(anyhow!(
                 "Untitled buffer selection mentions are not supported for paste"
@@ -570,6 +571,7 @@ impl MentionSet {
             let uri = MentionUri::Selection {
                 abs_path: abs_path.clone(),
                 line_range: line_range.clone(),
+                column: None,
             };
             let crease = crease_for_mention(
                 selection_name(abs_path.as_deref(), &line_range).into(),
