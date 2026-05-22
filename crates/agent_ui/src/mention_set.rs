@@ -807,6 +807,7 @@ mod tests {
                 MentionUri::Selection {
                     abs_path: Some(path!("/project/file.rs").into()),
                     line_range: 1..=2,
+                    column: None,
                 },
                 false,
                 http_client,
