@@ -4,7 +4,7 @@ use crate::{
     FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
     ListDirectoryTool, MovePathTool, ProjectSnapshot, ReadFileTool, RenameTool, SpawnAgentTool,
     SystemPromptTemplate, Template, Templates, TerminalTool, ToolPermissionDecision,
-    UpdatePlanTool, UpdateTitleTool, UserAgentsMd, WebSearchTool, WriteFileTool,
+    UpdatePlanTool, UpdateTitleTool, UserAgentsMd, WebSearchTool, WorkspaceTool, WriteFileTool,
     decide_permission_from_settings,
 };
 use acp_thread::{MentionUri, UserMessageId};
@@ -1714,6 +1714,15 @@ impl Thread {
 
         if self.depth() < MAX_SUBAGENT_DEPTH {
             self.add_tool(SpawnAgentTool::new(environment));
+        }
+
+        // Add workspace tool if the global registry is available
+        if let Some(global_registry) = cx.try_global::<crate::GlobalWorkspaceRegistry>() {
+            self.add_tool(WorkspaceTool::new(
+                global_registry.registry.clone(),
+                global_registry.message_sender.clone(),
+                global_registry.refresh_fn.clone(),
+            ));
         }
     }
 

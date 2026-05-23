@@ -26,6 +26,7 @@ mod tool_permissions;
 mod update_plan_tool;
 mod update_title_tool;
 mod web_search_tool;
+mod workspace_tool;
 mod write_file_tool;
 
 use crate::AgentTool;
@@ -83,6 +84,7 @@ pub use tool_permissions::*;
 pub use update_plan_tool::*;
 pub use update_title_tool::*;
 pub use web_search_tool::*;
+pub use workspace_tool::*;
 pub use write_file_tool::*;
 
 macro_rules! tools {
@@ -176,5 +178,6 @@ tools! {
     UpdatePlanTool,
     UpdateTitleTool,
     WebSearchTool,
+    WorkspaceTool,
     WriteFileTool,
 }

@@ -139,6 +139,68 @@ struct PendingSession {
     ref_count: usize,
 }
 
+/// Callback type for sending messages between workspaces.
+/// Takes (target_workspace_id, message_content) and returns success/error.
+pub type WorkspaceMessageSender =
+    Arc<dyn Fn(String, String, &mut App) -> Task<Result<()>> + Send + Sync + 'static>;
+
+/// Callback type for refreshing workspace snapshots from the UI layer.
+pub type WorkspaceRefreshFn = Arc<dyn Fn(&mut App) + Send + Sync + 'static>;
+
+/// Global registry for cross-workspace awareness.
+/// Populated by agent_ui when workspace state changes.
+pub struct GlobalWorkspaceRegistry {
+    registry: Arc<std::sync::Mutex<WorkspaceRegistry>>,
+    message_sender: WorkspaceMessageSender,
+    refresh_fn: WorkspaceRefreshFn,
+}
+
+impl GlobalWorkspaceRegistry {
+    pub fn new(
+        registry: Arc<std::sync::Mutex<WorkspaceRegistry>>,
+        message_sender: WorkspaceMessageSender,
+        refresh_fn: WorkspaceRefreshFn,
+    ) -> Self {
+        Self {
+            registry,
+            message_sender,
+            refresh_fn,
+        }
+    }
+}
+
+impl gpui::Global for GlobalWorkspaceRegistry {}
+
+/// Initialize the global workspace registry.
+/// Called from agent_ui during startup.
+pub fn init_workspace_registry(
+    cx: &mut App,
+    message_sender: WorkspaceMessageSender,
+    refresh_fn: WorkspaceRefreshFn,
+) {
+    let registry = Arc::new(std::sync::Mutex::new(WorkspaceRegistry::default()));
+    cx.set_global(GlobalWorkspaceRegistry::new(
+        registry,
+        message_sender,
+        refresh_fn,
+    ));
+}
+
+/// Update the list of workspace snapshots in the global registry.
+/// Called from agent_ui whenever workspace state changes.
+pub fn update_workspace_snapshots(workspaces: Vec<WorkspaceInfo>, cx: &mut App) {
+    if let Some(global) = cx.try_global::<GlobalWorkspaceRegistry>() {
+        global.registry.lock().unwrap().update(workspaces);
+    }
+}
+
+/// Get a clone of the current workspace snapshot list.
+pub fn workspace_snapshots(cx: &App) -> Vec<WorkspaceInfo> {
+    cx.try_global::<GlobalWorkspaceRegistry>()
+        .map(|g| g.registry.lock().unwrap().list())
+        .unwrap_or_default()
+}
+
 pub struct LanguageModels {
     /// Access language model by ID
     models: HashMap<acp::ModelId, Arc<dyn LanguageModel>>,

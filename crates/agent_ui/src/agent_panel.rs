@@ -1223,7 +1223,17 @@ impl AgentPanel {
         let language_registry = project.read(cx).languages().clone();
         let client = workspace.client().clone();
         let workspace_id = workspace.database_id();
-        let workspace = workspace.weak_handle();
+        let workspace_weak = workspace.weak_handle();
+
+        // Initialize cross-workspace awareness
+        crate::workspace_bridge::ensure_workspace_registry(cx);
+        if let Some(id) = workspace_id {
+            crate::workspace_bridge::register_workspace_handle(
+                i64::from(id).to_string(),
+                workspace_weak.clone(),
+                cx,
+            );
+        }
 
         let context_server_registry =
             cx.new(|cx| ContextServerRegistry::new(project.read(cx).context_server_store(), cx));
@@ -1293,7 +1303,7 @@ impl AgentPanel {
             base_view,
             last_created_entry_kind: AgentPanelEntryKind::Thread,
             overlay_view: None,
-            workspace,
+            workspace: workspace_weak,
             user_store,
             project: project.clone(),
             fs: fs.clone(),
@@ -1387,6 +1397,27 @@ impl AgentPanel {
 
     pub fn connection_store(&self) -> &Entity<AgentConnectionStore> {
         &self.connection_store
+    }
+
+    /// Receive a message from another workspace's agent and display it in the conversation.
+    /// The message is shown with a special marker indicating it came from a peer workspace.
+    pub fn receive_workspace_message(&mut self, message: String, cx: &mut Context<Self>) {
+        // Format the message with a workspace communication marker
+        let formatted_message =
+            format!("\n---\n**[📨 Inter-Workspace Message]**\n{message}\n---\n");
+
+        // If we have an active agent thread, inject the formatted message
+        if let Some(thread) = self.active_agent_thread(cx) {
+            thread.update(cx, |thread, cx| {
+                thread.push_user_content_block(
+                    None,
+                    acp::ContentBlock::Text(acp::TextContent::new(formatted_message)),
+                    cx,
+                );
+            });
+        }
+
+        cx.notify();
     }
 
     pub fn selected_agent(&self, cx: &App) -> Agent {
