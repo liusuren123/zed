@@ -167,6 +167,8 @@ pub struct ProjectPanel {
     update_visible_entries_task: UpdateVisibleEntriesTask,
     undo_manager: UndoManager,
     filter_expanded: bool,
+    filter_display_set: Option<FilterDisplaySet>,
+    filter_search_task: Option<Task<()>>,
     state: State,
 }
 
@@ -174,6 +176,11 @@ struct UpdateVisibleEntriesTask {
     _visible_entries_task: Task<()>,
     focus_filename_editor: bool,
     autoscroll: bool,
+}
+
+#[derive(Clone)]
+struct FilterDisplaySet {
+    display_paths: HashSet<Arc<RelPath>>,
 }
 
 #[derive(Debug)]
@@ -742,11 +749,16 @@ impl ProjectPanel {
                 |project_panel, filter_editor, event, window, cx| {
                     if let editor::EditorEvent::BufferEdited = event {
                         let has_query = !filter_editor.read(cx).text(cx).trim().is_empty();
-                        if has_query && !project_panel.filter_expanded {
-                            project_panel.expand_all_directories(window, cx);
-                            project_panel.filter_expanded = true;
-                        } else if !has_query && project_panel.filter_expanded {
+                        if has_query {
+                            if !project_panel.filter_expanded {
+                                project_panel.filter_expanded = true;
+                            }
+                            project_panel.start_filter_search(window, cx);
+                        } else {
                             project_panel.filter_expanded = false;
+                            project_panel.filter_display_set = None;
+                            project_panel.filter_search_task = None;
+                            project_panel.update_visible_entries(None, false, false, window, cx);
                         }
                         cx.notify();
                     }
@@ -865,6 +877,8 @@ impl ProjectPanel {
                 update_visible_entries_task: Default::default(),
                 undo_manager: UndoManager::new(workspace.weak_handle(), weak_project_panel, &cx),
                 filter_expanded: false,
+                filter_display_set: None,
+                filter_search_task: None,
             };
             this.update_visible_entries(None, false, false, window, cx);
 
@@ -1587,29 +1601,77 @@ impl ProjectPanel {
         });
     }
 
-    fn expand_all_directories(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let all_dir_ids: Vec<(WorktreeId, ProjectEntryId)> = {
-            let project = self.project.read(cx);
-            let mut ids = Vec::new();
-            for worktree in project.visible_worktrees(cx) {
-                let worktree_id = worktree.read(cx).id();
-                let snapshot = worktree.read(cx).snapshot();
-                for entry in snapshot.entries(false, 0) {
-                    if entry.kind.is_dir() {
-                        ids.push((worktree_id, entry.id));
-                    }
-                }
+    fn start_filter_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let query = match self.query(cx) {
+            Some(query) => query,
+            None => {
+                self.filter_display_set = None;
+                self.filter_search_task = None;
+                cx.notify();
+                return;
             }
-            ids
         };
 
-        // Expand each directory and its ancestors
-        for (worktree_id, entry_id) in &all_dir_ids {
-            self.expand_all_for_entry(*worktree_id, *entry_id, cx);
-        }
+        self.filter_search_task.take();
 
-        // Rebuild visible entries to include newly expanded entries
-        self.update_visible_entries(None, false, false, window, cx);
+        let project = self.project.read(cx);
+        let worktrees: Vec<(WorktreeId, _)> = project
+            .visible_worktrees(cx)
+            .map(|w| (w.read(cx).id(), w.read(cx).snapshot()))
+            .collect();
+
+        let search_task = cx.spawn_in(window, async move |this, cx| {
+            let (display_paths, dirs_to_expand) = cx
+                .background_spawn(async move {
+                    let mut display_paths = HashSet::default();
+                    let mut dirs_to_expand: Vec<(WorktreeId, ProjectEntryId)> = Vec::new();
+
+                    for (worktree_id, snapshot) in &worktrees {
+                        for entry in snapshot.entries(false, 0) {
+                            let path_lower = entry.path.as_unix_str().to_lowercase();
+                            let matches = path_lower
+                                .split('/')
+                                .any(|component| component.contains(&query));
+                            if !matches {
+                                continue;
+                            }
+
+                            display_paths.insert(entry.path.clone());
+
+                            for ancestor_path in entry.path.ancestors() {
+                                if ancestor_path.as_std_path().as_os_str().is_empty() {
+                                    display_paths.insert(Arc::from(ancestor_path));
+                                    continue;
+                                }
+                                display_paths.insert(Arc::from(ancestor_path));
+
+                                if let Some(ancestor_entry) = snapshot.entry_for_path(ancestor_path)
+                                {
+                                    if ancestor_entry.kind.is_dir() {
+                                        dirs_to_expand.push((*worktree_id, ancestor_entry.id));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    (display_paths, dirs_to_expand)
+                })
+                .await;
+
+            this.update_in(cx, |this, window, cx| {
+                for (worktree_id, entry_id) in &dirs_to_expand {
+                    this.expand_all_for_entry(*worktree_id, *entry_id, cx);
+                }
+
+                this.filter_display_set = Some(FilterDisplaySet { display_paths });
+                this.update_visible_entries(None, false, false, window, cx);
+                cx.notify();
+            })
+            .log_err();
+        });
+
+        self.filter_search_task = Some(search_task);
     }
 
     fn collapse_all_for_entry(
@@ -4847,13 +4909,20 @@ impl ProjectPanel {
         ),
     ) {
         let query = self.query(cx);
+        let display_set = self.filter_display_set.as_ref();
         let mut ix = 0;
         for visible in &self.state.visible_entries {
             if ix >= range.end {
                 return;
             }
 
-            let matching_count: usize = if let Some(ref query) = query {
+            let matching_count: usize = if let Some(display_set) = display_set {
+                visible
+                    .entries
+                    .iter()
+                    .filter(|e| display_set.display_paths.contains(&e.path))
+                    .count()
+            } else if let Some(ref query) = query {
                 visible
                     .entries
                     .iter()
@@ -4873,7 +4942,11 @@ impl ProjectPanel {
                 .get_or_init(|| visible.entries.iter().map(|e| e.path.clone()).collect());
             let mut matching_index = 0;
             for entry in visible.entries.iter() {
-                if let Some(ref query) = query {
+                if let Some(display_set) = display_set {
+                    if !display_set.display_paths.contains(&entry.path) {
+                        continue;
+                    }
+                } else if let Some(ref query) = query {
                     if !Self::entry_matches_filter(entry, query) {
                         continue;
                     }
@@ -4909,7 +4982,19 @@ impl ProjectPanel {
     }
 
     fn filtered_item_count(&self, cx: &App) -> usize {
-        if let Some(query) = self.query(cx) {
+        if let Some(display_set) = &self.filter_display_set {
+            self.state
+                .visible_entries
+                .iter()
+                .map(|worktree| {
+                    worktree
+                        .entries
+                        .iter()
+                        .filter(|e| display_set.display_paths.contains(&e.path))
+                        .count()
+                })
+                .sum()
+        } else if let Some(query) = self.query(cx) {
             self.state
                 .visible_entries
                 .iter()
@@ -4943,13 +5028,20 @@ impl ProjectPanel {
         ),
     ) {
         let query = self.query(cx);
+        let display_set = self.filter_display_set.as_ref();
         let mut ix = 0;
         for visible in &self.state.visible_entries {
             if ix >= range.end {
                 return;
             }
 
-            let matching_count: usize = if let Some(ref query) = query {
+            let matching_count: usize = if let Some(display_set) = display_set {
+                visible
+                    .entries
+                    .iter()
+                    .filter(|e| display_set.display_paths.contains(&e.path))
+                    .count()
+            } else if let Some(ref query) = query {
                 visible
                     .entries
                     .iter()
@@ -4981,7 +5073,11 @@ impl ProjectPanel {
                     .get_or_init(|| visible.entries.iter().map(|e| e.path.clone()).collect());
                 let mut matching_index = 0;
                 for entry in visible.entries.iter() {
-                    if let Some(ref query) = query {
+                    if let Some(display_set) = display_set {
+                        if !display_set.display_paths.contains(&entry.path) {
+                            continue;
+                        }
+                    } else if let Some(ref query) = query {
                         if !Self::entry_matches_filter(entry, query) {
                             continue;
                         }
