@@ -8,8 +8,10 @@ use task::{RevealTarget, TaskContext, TaskId, TaskTemplate, TaskVariables, Varia
 use workspace::Workspace;
 
 mod modal;
+mod task_runner_button;
 
 pub use modal::{Rerun, ShowAttachModal, Spawn, TaskOverrides, TasksModal};
+pub use task_runner_button::TaskRunnerButton;
 
 pub fn init(cx: &mut App) {
     cx.observe_new(

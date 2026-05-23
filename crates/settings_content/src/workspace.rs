@@ -488,6 +488,10 @@ pub struct StatusBarSettingsContent {
     ///
     /// Default: non_utf8
     pub active_encoding_button: Option<EncodingDisplayOptions>,
+    /// Whether to show the task runner button in the status bar.
+    ///
+    /// Default: true
+    pub task_runner_button: Option<bool>,
 }
 
 #[derive(
