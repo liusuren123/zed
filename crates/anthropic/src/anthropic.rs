@@ -670,6 +670,8 @@ pub enum Effort {
     Low,
     Medium,
     High,
+    #[serde(rename = "xhigh")]
+    #[strum(serialize = "xhigh")]
     XHigh,
     Max,
 }
