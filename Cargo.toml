@@ -123,6 +123,7 @@ members = [
     "crates/language_onboarding",
     "crates/language_selector",
     "crates/language_tools",
+    "crates/lan_collab",
     "crates/languages",
     "crates/line_ending_selector",
     "crates/livekit_api",
@@ -383,6 +384,7 @@ language_models_cloud = { path = "crates/language_models_cloud" }
 language_onboarding = { path = "crates/language_onboarding" }
 language_selector = { path = "crates/language_selector" }
 language_tools = { path = "crates/language_tools" }
+lan_collab = { path = "crates/lan_collab" }
 languages = { path = "crates/languages" }
 line_ending_selector = { path = "crates/line_ending_selector" }
 livekit_api = { path = "crates/livekit_api" }
@@ -602,6 +604,7 @@ heck = "0.5"
 hdrhistogram = "7"
 heed = { version = "0.21.0", features = ["read-txn-no-tls"] }
 hex = "0.4.3"
+hostname = "0.4"
 human_bytes = "0.4.1"
 html5ever = "0.27.0"
 http = "1.1"

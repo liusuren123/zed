@@ -40,6 +40,7 @@ feature_flags.workspace = true
 futures.workspace = true
 fuzzy.workspace = true
 gpui.workspace = true
+lan_collab.workspace = true
 livekit_client.workspace = true
 menu.workspace = true
 notifications.workspace = true

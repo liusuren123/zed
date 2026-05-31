@@ -14,6 +14,7 @@ use crate::spawn_tasks_filtered;
 
 pub struct TaskRunnerButton {
     workspace: WeakEntity<Workspace>,
+    project: WeakEntity<project::Project>,
     tasks: Vec<(TaskSourceKind, TaskTemplate)>,
     default_task_label: Option<String>,
     menu_handle: PopoverMenuHandle<ContextMenu>,
@@ -22,23 +23,27 @@ pub struct TaskRunnerButton {
 
 impl TaskRunnerButton {
     pub fn new(workspace: &Workspace, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let project = workspace.project().downgrade();
         let mut this = Self {
             workspace: workspace.weak_handle(),
+            project,
             tasks: Vec::new(),
             default_task_label: None,
             menu_handle: PopoverMenuHandle::default(),
             _observe_task_inventory: None,
         };
         this.setup_task_observer(window, cx);
-        this.refresh_tasks(window, cx);
+        // Defer initial refresh until after workspace construction completes.
+        cx.defer_in(window, |this, window, cx| {
+            this.refresh_tasks(window, cx);
+        });
         this
     }
 
     fn setup_task_observer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(workspace) = self.workspace.upgrade() else {
+        let Some(project) = self.project.upgrade() else {
             return;
         };
-        let project = workspace.read(cx).project().clone();
         let task_inventory = project.read_with(cx, |project, cx| {
             project.task_store().read(cx).task_inventory().cloned()
         });
@@ -53,10 +58,9 @@ impl TaskRunnerButton {
     }
 
     fn refresh_tasks(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(workspace) = self.workspace.upgrade() else {
+        let Some(project) = self.project.upgrade() else {
             return;
         };
-        let project = workspace.read(cx).project().clone();
 
         let task_inventory = project.read_with(cx, |project, cx| {
             project.task_store().read(cx).task_inventory().cloned()
@@ -66,10 +70,10 @@ impl TaskRunnerButton {
             return;
         };
 
-        let worktree_id = workspace
-            .read(cx)
-            .visible_worktrees(cx)
-            .next()
+        let worktree_id = self
+            .workspace
+            .upgrade()
+            .and_then(|ws| ws.read_with(cx, |ws, cx| ws.visible_worktrees(cx).next()))
             .map(|tree| tree.read(cx).id());
 
         cx.spawn_in(window, async move |this, cx| {

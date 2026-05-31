@@ -3327,6 +3327,7 @@ dependencies = [
  "futures 0.3.32",
  "fuzzy",
  "gpui",
+ "lan_collab",
  "livekit_client",
  "menu",
  "notifications",
@@ -8379,6 +8380,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "hostname"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "617aaa3557aef3810a6369d0a99fac8a080891b68bd9f9812a1eeda0c0730cbd"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "windows-link 0.2.1",
+]
+
+[[package]]
 name = "hound"
 version = "3.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8933,7 +8945,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b0f83760fb341a774ed326568e19f5a863af4a952def8c39f9ab92fd95b88e5"
 dependencies = [
  "equivalent",
- "hashbrown 0.15.5",
+ "hashbrown 0.16.1",
  "serde",
  "serde_core",
 ]
@@ -9532,6 +9544,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0de8b303297635ad57c9f5059fd9cee7a47f8e8daa09df0fcd07dd39fb22977f"
 dependencies = [
  "log",
+]
+
+[[package]]
+name = "lan_collab"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-tungstenite",
+ "client",
+ "db",
+ "futures 0.3.32",
+ "gpui",
+ "hostname",
+ "log",
+ "project",
+ "rand 0.9.4",
+ "rpc",
+ "serde",
+ "serde_json",
+ "smol",
+ "tokio",
+ "util",
 ]
 
 [[package]]
@@ -22581,6 +22615,7 @@ dependencies = [
  "journal",
  "json_schema_store",
  "keymap_editor",
+ "lan_collab",
  "language",
  "language_extension",
  "language_model",

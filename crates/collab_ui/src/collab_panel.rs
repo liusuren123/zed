@@ -21,6 +21,8 @@ use gpui::{
     prelude::*, px,
 };
 
+use lan_collab::{LanCollabEvent, LanCollabManager, LanDiscoveredPeer};
+
 use menu::{Cancel, Confirm, SecondaryConfirm, SelectNext, SelectPrevious};
 use notifications::{NotificationEntry, NotificationEvent, NotificationStore};
 use project::{Fs, Project};
@@ -278,6 +280,12 @@ pub struct CollabPanel {
     notification_store: Entity<NotificationStore>,
     current_notification_toast: Option<(u64, Task<()>)>,
     mark_as_read_tasks: HashMap<u64, Task<anyhow::Result<()>>>,
+    discovered_peers: HashMap<String, LanDiscoveredPeer>,
+    /// LAN peers with an active connection (peer_name → PeerId).
+    connected_peers: HashMap<String, PeerId>,
+    /// Inline editor for probing a specific IP address.
+    lan_probe_editor: Option<Entity<Editor>>,
+    _lan_probe_subscription: Option<Subscription>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -295,6 +303,7 @@ enum Section {
     Contacts,
     Online,
     Offline,
+    LanPeers,
 }
 
 #[derive(Clone, Debug)]
@@ -338,6 +347,13 @@ enum ListEntry {
         calling: bool,
     },
     ContactPlaceholder,
+    LanPeer {
+        peer: LanDiscoveredPeer,
+    },
+    LanContact {
+        peer_name: String,
+        peer_id: PeerId,
+    },
 }
 
 impl CollabPanel {
@@ -417,6 +433,10 @@ impl CollabPanel {
                 filter_occupied_channels: false,
                 workspace: workspace.weak_handle(),
                 client: workspace.app_state().client.clone(),
+                discovered_peers: HashMap::default(),
+                connected_peers: HashMap::default(),
+                lan_probe_editor: None,
+                _lan_probe_subscription: None,
             };
 
             this.update_entries(false, cx);
@@ -432,6 +452,44 @@ impl CollabPanel {
                 }));
             this.subscriptions
                 .push(cx.observe(&active_call, |this, _, cx| this.update_entries(true, cx)));
+
+            // Subscribe to LAN peer discoveries
+            if let Some(lan_manager) = LanCollabManager::global(cx) {
+                this.subscriptions
+                    .push(
+                        cx.subscribe(&lan_manager, |this, _manager, event, cx| match event {
+                            LanCollabEvent::PeerDiscovered(peer) => {
+                                this.discovered_peers
+                                    .insert(peer.name.clone(), peer.clone());
+                                this.update_entries(false, cx);
+                                cx.notify();
+                            }
+                            LanCollabEvent::PeerLost { peer_name } => {
+                                this.discovered_peers.remove(peer_name);
+                                this.update_entries(false, cx);
+                                cx.notify();
+                            }
+                            LanCollabEvent::PeerConnected { peer_name, peer_id } => {
+                                this.connected_peers.insert(peer_name.clone(), *peer_id);
+                                this.update_entries(false, cx);
+                                cx.notify();
+                            }
+                            LanCollabEvent::PeerDisconnected { peer_name } => {
+                                this.connected_peers.remove(peer_name);
+                                this.update_entries(false, cx);
+                                cx.notify();
+                            }
+                            LanCollabEvent::ProjectShared {
+                                peer_name: _,
+                                project_id: _,
+                                response_payload: _,
+                            } => {
+                                // TODO: Wire up project join flow via
+                                // `Project::join_remote_project`.
+                            }
+                        }),
+                    );
+            }
             this.subscriptions.push(cx.subscribe_in(
                 &this.channel_store,
                 window,
@@ -1039,6 +1097,34 @@ impl CollabPanel {
             self.entries.push(ListEntry::ContactPlaceholder);
         }
 
+        // Add connected LAN peers to the contacts list (inline, no separate section).
+        if !self.connected_peers.is_empty() {
+            for (peer_name, peer_id) in &self.connected_peers {
+                self.entries.push(ListEntry::LanContact {
+                    peer_name: peer_name.clone(),
+                    peer_id: *peer_id,
+                });
+            }
+        }
+
+        // Nearby: discovered LAN peers (not yet connected).
+        if !self.discovered_peers.is_empty() {
+            let has_any_unconnected = self
+                .discovered_peers
+                .keys()
+                .any(|name| !self.connected_peers.contains_key(name));
+            if has_any_unconnected {
+                self.entries.push(ListEntry::Header(Section::LanPeers));
+                if !self.collapsed_sections.contains(&Section::LanPeers) {
+                    for peer in self.discovered_peers.values() {
+                        if !self.connected_peers.contains_key(&peer.name) {
+                            self.entries.push(ListEntry::LanPeer { peer: peer.clone() });
+                        }
+                    }
+                }
+            }
+        }
+
         if select_same_item {
             if let Some(prev_selected_entry) = prev_selected_entry {
                 let prev_selection = self.selection.take();
@@ -1328,6 +1414,188 @@ impl CollabPanel {
             )
             .child(Label::new(translate("notes", cx)))
             .tooltip(Tooltip::text(translate("Open Channel Notes", cx)))
+    }
+
+    fn render_lan_peer(
+        &self,
+        peer: &LanDiscoveredPeer,
+        is_selected: bool,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let name = peer.name.clone();
+        let address = peer
+            .addresses
+            .first()
+            .map(|a| a.to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+        let is_connected = self.connected_peers.contains_key(&peer.name);
+
+        let status_text = if is_connected {
+            "LAN — Connected"
+        } else {
+            "LAN — Discovered"
+        };
+
+        let item = ListItem::new(SharedString::from(name.as_str()))
+            .indent_level(1)
+            .indent_step_size(px(20.))
+            .toggle_state(is_selected)
+            .child(
+                h_flex()
+                    .w_full()
+                    .justify_between()
+                    .child(
+                        v_flex().child(Label::new(name.clone())).child(
+                            Label::new(format!("{} — {}", status_text, address))
+                                .color(Color::Muted)
+                                .size(LabelSize::Small),
+                        ),
+                    )
+                    .when(is_connected, |parent| {
+                        parent.child(
+                            IconButton::new("lan-connected-status", IconName::Check)
+                                .icon_color(Color::Success)
+                                .tooltip(Tooltip::text("Connected")),
+                        )
+                    })
+                    .when(!is_connected, |parent| {
+                        parent.child(
+                            IconButton::new("connect-lan-peer", IconName::Plus)
+                                .icon_color(Color::Muted)
+                                .visible_on_hover("")
+                                .tooltip(Tooltip::text(format!("Connect to {}", name))),
+                        )
+                    }),
+            )
+            .when(!is_connected, |parent| {
+                let peer = peer.clone();
+                parent.on_click(cx.listener(move |this, _event, window, cx| {
+                    if let Some(addr) = peer.addresses.first() {
+                        let addr_str = addr.to_string();
+                        let peer_name = peer.name.clone();
+                        this.connect_to_lan_peer(&addr_str, &peer_name, window, cx);
+                    }
+                }))
+            })
+            .start_slot(
+                Avatar::new("").indicator::<AvatarAvailabilityIndicator>(Some(
+                    AvatarAvailabilityIndicator::new(if is_connected {
+                        ui::CollaboratorAvailability::Free
+                    } else {
+                        ui::CollaboratorAvailability::Busy
+                    }),
+                )),
+            );
+
+        item.into_any_element()
+    }
+
+    fn render_lan_contact(
+        &self,
+        peer_name: &str,
+        _peer_id: &PeerId,
+        is_selected: bool,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let item = ListItem::new(SharedString::from(peer_name))
+            .indent_level(1)
+            .indent_step_size(px(20.))
+            .toggle_state(is_selected)
+            .child(
+                h_flex()
+                    .w_full()
+                    .justify_between()
+                    .child(
+                        v_flex().child(Label::new(peer_name.to_string())).child(
+                            Label::new("LAN — Connected")
+                                .color(Color::Muted)
+                                .size(LabelSize::Small),
+                        ),
+                    )
+                    .child(
+                        IconButton::new("call-lan-peer", IconName::Mic)
+                            .icon_color(Color::Muted)
+                            .visible_on_hover("")
+                            .tooltip(Tooltip::text(format!("Call {}", peer_name))),
+                    ),
+            )
+            .on_click(cx.listener({
+                let peer_name = peer_name.to_string();
+                move |this, _event, window, cx| {
+                    this.call_lan_peer(&peer_name, window, cx);
+                }
+            }))
+            .start_slot(
+                Avatar::new("").indicator::<AvatarAvailabilityIndicator>(Some(
+                    AvatarAvailabilityIndicator::new(ui::CollaboratorAvailability::Free),
+                )),
+            );
+
+        item.into_any_element()
+    }
+
+    fn call_lan_peer(&mut self, _peer_name: &str, _window: &mut Window, _cx: &mut Context<Self>) {
+        // TODO: Implement P2P call signaling through the LAN connection.
+    }
+
+    fn scan_lan_peers(&mut self, cx: &mut Context<Self>) {
+        self.discovered_peers.clear();
+        cx.notify();
+        if let Some(manager) = LanCollabManager::global(cx) {
+            manager.update(cx, |manager, cx| {
+                manager.refresh_discovery(cx);
+            });
+        }
+    }
+
+    fn probe_ip(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // Toggle the inline IP probe editor.
+        if self.lan_probe_editor.is_some() {
+            self.dismiss_probe_editor(cx);
+            return;
+        }
+
+        let editor = cx.new(|cx| {
+            let mut editor = Editor::single_line(window, cx);
+            editor.set_placeholder_text(&translate("Enter IP address to probe…", cx), window, cx);
+            editor
+        });
+
+        self._lan_probe_subscription =
+            Some(
+                cx.subscribe_in(&editor, window, |this: &mut Self, _, event, _window, cx| {
+                    if let editor::EditorEvent::Blurred = event {
+                        this.dismiss_probe_editor(cx);
+                    }
+                }),
+            );
+
+        self.lan_probe_editor = Some(editor.clone());
+        window.focus(&editor.focus_handle(cx), cx);
+        cx.notify();
+    }
+
+    fn dismiss_probe_editor(&mut self, cx: &mut Context<Self>) {
+        self.lan_probe_editor = None;
+        self._lan_probe_subscription = None;
+        cx.notify();
+    }
+
+    fn confirm_probe_ip(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(editor) = &self.lan_probe_editor {
+            let ip = editor.read(cx).text(cx).trim().to_string();
+            if ip.is_empty() {
+                self.dismiss_probe_editor(cx);
+                return;
+            }
+            if let Some(manager) = LanCollabManager::global(cx) {
+                let ip = ip.to_string();
+                manager.update(cx, |manager, cx| {
+                    manager.probe_peer(&ip, cx);
+                });
+            }
+            self.dismiss_probe_editor(cx);
+        }
     }
 
     fn has_subchannels(&self, ix: usize) -> bool {
@@ -1770,6 +2038,11 @@ impl CollabPanel {
             return;
         }
 
+        if self.lan_probe_editor.is_some() {
+            self.confirm_probe_ip(window, cx);
+            return;
+        }
+
         if let Some(selection) = self.selection
             && let Some(entry) = self.entries.get(selection)
         {
@@ -1779,10 +2052,11 @@ impl CollabPanel {
                     Section::Channels => self.new_root_channel(window, cx),
                     Section::Contacts => self.toggle_contact_finder(window, cx),
                     Section::FavoriteChannels
+                    | Section::ChannelInvites
                     | Section::ContactRequests
                     | Section::Online
                     | Section::Offline
-                    | Section::ChannelInvites => {
+                    | Section::LanPeers => {
                         self.toggle_section_expanded(*section, cx);
                     }
                 },
@@ -1855,6 +2129,15 @@ impl CollabPanel {
                 }
                 ListEntry::OutgoingRequest(_) => {}
                 ListEntry::ChannelEditor { .. } => {}
+                ListEntry::LanPeer { .. } => {}
+                ListEntry::LanContact {
+                    peer_name: _,
+                    peer_id: _,
+                } => {
+                    // TODO: Initiate LAN call with this peer.
+                    // For now, delegate to the regular call flow if both
+                    // users are in the same room.
+                }
             }
         }
     }
@@ -2059,6 +2342,59 @@ impl CollabPanel {
             }
             .log_err(),
         );
+    }
+
+    fn connect_to_lan_peer(
+        &mut self,
+        address: &str,
+        peer_name: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        // Already trusted — connect immediately.
+        if lan_collab::is_peer_trusted(peer_name, cx) {
+            self.do_connect_to_lan_peer(address, peer_name, cx);
+            return;
+        }
+
+        // First-time connection — ask the user to confirm.
+        let prompt_message = format!(
+            "Do you want to connect to \"{}\" on your local network?\n\nAddress: {}",
+            peer_name, address
+        );
+        let answer = window.prompt(
+            PromptLevel::Warning,
+            &prompt_message,
+            Some("Only connect to devices you trust. Your choice will be remembered."),
+            &["Connect", "Cancel"],
+            cx,
+        );
+        let address = address.to_string();
+        let peer_name = peer_name.to_string();
+        cx.spawn_in(window, async move |this, cx| {
+            let choice = answer.await.log_err();
+            if choice == Some(0) {
+                // User confirmed — trust the peer and connect.
+                cx.update(|_window, cx| {
+                    lan_collab::trust_peer(&peer_name, cx).detach_and_log_err(cx);
+                })?;
+                this.update_in(cx, |this, _window, cx| {
+                    this.do_connect_to_lan_peer(&address, &peer_name, cx);
+                })?;
+            }
+            anyhow::Ok(())
+        })
+        .detach_and_log_err(cx);
+    }
+
+    fn do_connect_to_lan_peer(&mut self, address: &str, peer_name: &str, cx: &mut Context<Self>) {
+        if let Some(lan_manager) = LanCollabManager::global(cx) {
+            lan_manager.update(cx, |manager, cx| {
+                manager
+                    .connect_to_peer(address, peer_name, cx)
+                    .detach_and_log_err(cx);
+            });
+        }
     }
 
     fn leave_call(window: &mut Window, cx: &mut App) {
@@ -2698,6 +3034,153 @@ impl CollabPanel {
                         .detach()
                     })),
             )
+            .child(self.render_lan_section(cx))
+    }
+
+    fn render_lan_section(&self, cx: &mut Context<Self>) -> Div {
+        let has_connected = !self.connected_peers.is_empty();
+        let has_discovered = self
+            .discovered_peers
+            .iter()
+            .any(|(name, _)| !self.connected_peers.contains_key(name));
+
+        let header = ListHeader::new("Nearby")
+            .inset(true)
+            .end_slot::<AnyElement>(
+                h_flex()
+                    .gap_1()
+                    .child(
+                        IconButton::new("probe-lan", IconName::Plus)
+                            .icon_color(Color::Muted)
+                            .icon_size(IconSize::Small)
+                            .tooltip(Tooltip::text("Probe a specific IP"))
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.probe_ip(window, cx);
+                            })),
+                    )
+                    .child(
+                        IconButton::new("refresh-lan", IconName::RotateCw)
+                            .icon_color(Color::Muted)
+                            .icon_size(IconSize::Small)
+                            .tooltip(Tooltip::text("Scan for LAN peers"))
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.scan_lan_peers(cx);
+                            })),
+                    )
+                    .into_any_element(),
+            );
+
+        // Render the IP probe editor if active
+        if let Some(editor) = &self.lan_probe_editor {
+            return v_flex()
+                .gap_0()
+                .child(header)
+                .child(div().px_3().py_2().child(editor.clone()));
+        }
+
+        if !has_connected && !has_discovered {
+            return v_flex().p_4().gap_2().child(header).child(
+                Label::new("No LAN peers discovered yet.")
+                    .color(Color::Muted)
+                    .size(LabelSize::Small),
+            );
+        }
+
+        let mut section = v_flex().gap_0().child(header);
+
+        // Connected peers first
+        for (peer_name, _peer_id) in &self.connected_peers {
+            let name = peer_name.clone();
+            let peer_clone = self.discovered_peers.get(peer_name).cloned();
+            let addr = peer_clone
+                .as_ref()
+                .and_then(|p| p.addresses.first())
+                .map(|a| a.to_string())
+                .unwrap_or_else(|| "connected".to_string());
+
+            section = section.child(
+                ListItem::new(SharedString::from(name.as_str()))
+                    .indent_level(1)
+                    .indent_step_size(px(20.))
+                    .child(
+                        h_flex()
+                            .w_full()
+                            .justify_between()
+                            .child(
+                                v_flex().child(Label::new(name.clone())).child(
+                                    Label::new(format!("LAN — Connected — {}", addr))
+                                        .color(Color::Muted)
+                                        .size(LabelSize::Small),
+                                ),
+                            )
+                            .child(
+                                IconButton::new("call-lan-peer-static", IconName::Mic)
+                                    .icon_color(Color::Muted)
+                                    .visible_on_hover("")
+                                    .tooltip(Tooltip::text(format!("Call {}", name))),
+                            ),
+                    )
+                    .start_slot(
+                        Avatar::new("").indicator::<AvatarAvailabilityIndicator>(Some(
+                            AvatarAvailabilityIndicator::new(ui::CollaboratorAvailability::Free),
+                        )),
+                    ),
+            );
+        }
+
+        // Discovered (not connected) peers
+        for peer in self.discovered_peers.values() {
+            if self.connected_peers.contains_key(&peer.name) {
+                continue;
+            }
+            let name = peer.name.clone();
+            let addr = peer
+                .addresses
+                .first()
+                .map(|a| a.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+
+            section = section.child(
+                ListItem::new(SharedString::from(name.as_str()))
+                    .indent_level(1)
+                    .indent_step_size(px(20.))
+                    .child(
+                        h_flex()
+                            .w_full()
+                            .justify_between()
+                            .child(
+                                v_flex().child(Label::new(name.clone())).child(
+                                    Label::new(format!("LAN — Discovered — {}", addr))
+                                        .color(Color::Muted)
+                                        .size(LabelSize::Small),
+                                ),
+                            )
+                            .child(
+                                IconButton::new("connect-lan-peer-static", IconName::Plus)
+                                    .icon_color(Color::Muted)
+                                    .visible_on_hover("")
+                                    .tooltip(Tooltip::text(format!("Connect to {}", name))),
+                            ),
+                    )
+                    .on_click(cx.listener({
+                        let peer = peer.clone();
+                        move |this, _event, window, cx| {
+                            if let Some(addr) = peer.addresses.first() {
+                                let addr_str = addr.to_string();
+                                let peer_name = peer.name.clone();
+                                this.connect_to_lan_peer(&addr_str, &peer_name, window, cx);
+                            }
+                        }
+                    }))
+                    .start_slot(
+                        Avatar::new("").indicator::<AvatarAvailabilityIndicator>(Some(
+                            AvatarAvailabilityIndicator::new(ui::CollaboratorAvailability::Busy),
+                        )),
+                    ),
+            );
+        }
+
+        section
     }
 
     fn render_list_entry(
@@ -2781,6 +3264,12 @@ impl CollabPanel {
                 .into_any_element(),
             ListEntry::ChannelNotes { channel_id } => self
                 .render_channel_notes(channel_id, is_selected, window, cx)
+                .into_any_element(),
+            ListEntry::LanPeer { peer } => self
+                .render_lan_peer(&peer, is_selected, cx)
+                .into_any_element(),
+            ListEntry::LanContact { peer_name, peer_id } => self
+                .render_lan_contact(&peer_name, &peer_id, is_selected, cx)
                 .into_any_element(),
         }
     }
@@ -2905,6 +3394,7 @@ impl CollabPanel {
             Section::ChannelInvites => SharedString::from("Invites"),
             Section::Online => SharedString::from("Online"),
             Section::Offline => SharedString::from("Offline"),
+            Section::LanPeers => SharedString::from("Nearby"),
         };
 
         let auto_watch_state = self
@@ -3021,7 +3511,8 @@ impl CollabPanel {
             Section::ActiveCall
             | Section::Channels
             | Section::Contacts
-            | Section::FavoriteChannels => false,
+            | Section::FavoriteChannels
+            | Section::LanPeers => false,
 
             Section::ChannelInvites
             | Section::ContactRequests
@@ -3947,6 +4438,21 @@ impl PartialEq for ListEntry {
                     return true;
                 }
             }
+            ListEntry::LanPeer { peer: peer_1 } => {
+                if let ListEntry::LanPeer { peer: peer_2 } = other {
+                    return peer_1.name == peer_2.name;
+                }
+            }
+            ListEntry::LanContact {
+                peer_name: name_1, ..
+            } => {
+                if let ListEntry::LanContact {
+                    peer_name: name_2, ..
+                } = other
+                {
+                    return name_1 == name_2;
+                }
+            }
         }
         false
     }
@@ -4124,6 +4630,7 @@ impl CollabPanel {
                         Section::Contacts => "Contacts",
                         Section::Online => "Online",
                         Section::Offline => "Offline",
+                        Section::LanPeers => "Nearby",
                     };
                     string_entries.push(format!("[{name}]"));
                 }
@@ -4185,6 +4692,12 @@ impl CollabPanel {
                         .push(format!("  {}{selected_marker}", contact.user.github_login));
                 }
                 ListEntry::ContactPlaceholder => {}
+                ListEntry::LanPeer { peer } => {
+                    string_entries.push(format!("  LAN: {}{selected_marker}", peer.name));
+                }
+                ListEntry::LanContact { peer_name, .. } => {
+                    string_entries.push(format!("  LAN Contact: {}{selected_marker}", peer_name));
+                }
             }
         }
         string_entries

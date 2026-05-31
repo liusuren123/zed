@@ -5250,6 +5250,21 @@ impl Window {
         self.refresh();
     }
 
+    /// Enables the inspector and starts element picking mode on this window.
+    /// If the inspector is already open, just enables pick mode.
+    #[cfg(any(feature = "inspector", debug_assertions))]
+    pub fn start_inspector_picking(&mut self, cx: &mut App) {
+        if self.inspector.is_none() {
+            self.inspector = Some(cx.new(|_| Inspector::new()));
+        }
+        if let Some(inspector) = &self.inspector {
+            inspector.update(cx, |inspector, _cx| {
+                inspector.start_picking();
+            });
+        }
+        self.refresh();
+    }
+
     /// Returns true if the window is in inspector mode.
     pub fn is_inspector_picking(&self, _cx: &App) -> bool {
         #[cfg(any(feature = "inspector", debug_assertions))]
@@ -5374,13 +5389,30 @@ impl Window {
                 }
             });
         } else if event.downcast_ref::<crate::MouseDownEvent>().is_some() {
-            inspector.update(cx, |inspector, _cx| {
-                if let Some((_, inspector_id)) =
+            let inspector_id = {
+                let Some(inspector) = &self.inspector else {
+                    return;
+                };
+                inspector.read_with(cx, |inspector, _cx| {
                     self.hovered_inspector_hitbox(inspector, &self.rendered_frame)
-                {
-                    inspector.select(inspector_id, self);
+                        .map(|(_, id)| id)
+                })
+            };
+            if let Some(inspector_id) = inspector_id {
+                let inspector_entity = self.inspector.clone();
+                if let Some(inspector) = inspector_entity {
+                    inspector.update(cx, |inspector, _cx| {
+                        inspector.select(inspector_id.clone(), self);
+                    });
                 }
-            });
+                // If an agent tool is waiting for a pick result, send it now.
+                if cx.has_global::<crate::PendingInspectorPick>() {
+                    let pending = cx.global_mut::<crate::PendingInspectorPick>();
+                    if let Some(sender) = pending.sender.take() {
+                        sender.send(inspector_id).ok();
+                    }
+                }
+            }
         } else if let Some(event) = event.downcast_ref::<crate::ScrollWheelEvent>() {
             // This should be kept in sync with SCROLL_LINES in x11 platform.
             const SCROLL_LINES: f32 = 3.0;

@@ -664,6 +664,11 @@ impl Client {
         }
     }
 
+    /// Returns a reference to the underlying RPC peer for direct connection management.
+    pub fn peer(&self) -> &Arc<Peer> {
+        &self.peer
+    }
+
     pub fn status(&self) -> watch::Receiver<Status> {
         self.state.read().status.1.clone()
     }
@@ -1789,6 +1794,16 @@ impl Client {
             );
             Ok(response?.0)
         }
+    }
+
+    /// Dispatch an incoming RPC message from a LAN peer connection.
+    /// Routes the message through the same handler set as server messages.
+    pub fn dispatch_lan_message(
+        self: &Arc<Self>,
+        message: Box<dyn AnyTypedEnvelope>,
+        cx: &AsyncApp,
+    ) {
+        self.handle_message(message, cx);
     }
 
     fn handle_message(self: &Arc<Client>, message: Box<dyn AnyTypedEnvelope>, cx: &AsyncApp) {

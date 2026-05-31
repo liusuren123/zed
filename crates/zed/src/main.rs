@@ -38,6 +38,7 @@ use gpui::{
 use gpui_platform;
 
 use gpui_tokio::Tokio;
+use lan_collab::LanCollabManager;
 use language::LanguageRegistry;
 use onboarding::{FIRST_OPEN, show_onboarding_view};
 use project_panel::ProjectPanel;
@@ -746,6 +747,7 @@ fn main() {
         tasks_ui::init(cx);
         snippets_ui::init(cx);
         channel::init(&app_state.client.clone(), app_state.user_store.clone(), cx);
+        LanCollabManager::init(app_state.client.clone(), cx);
         search::init(cx);
         cx.set_global(workspace::PaneSearchBarCallbacks {
             setup_search_bar: |languages, toolbar, window, cx| {

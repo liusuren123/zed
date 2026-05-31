@@ -1,3 +1,15 @@
+/// When set, the next mouse click in inspector pick mode will send the selected
+/// element ID through this channel instead of just selecting it in the inspector.
+/// Used by the agent's `inspect_element` tool to programmatically capture UI picks.
+#[cfg(any(feature = "inspector", debug_assertions))]
+pub struct PendingInspectorPick {
+    /// The sender that will be fulfilled when the user clicks a UI element.
+    pub sender: Option<futures::channel::oneshot::Sender<InspectorElementId>>,
+}
+
+#[cfg(any(feature = "inspector", debug_assertions))]
+impl crate::Global for PendingInspectorPick {}
+
 /// A unique identifier for an element that can be inspected.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct InspectorElementId {

@@ -2,10 +2,10 @@ use crate::{
     ApplyCodeActionTool, CodeActionStore, ContextServerRegistry, CopyPathTool, CreateDirectoryTool,
     DbLanguageModel, DbThread, DeletePathTool, DiagnosticsTool, EditFileTool, FetchTool,
     FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
-    ListDirectoryTool, MovePathTool, ProjectSnapshot, ReadFileTool, RenameTool, SpawnAgentTool,
-    SystemPromptTemplate, Template, Templates, TerminalTool, ToolPermissionDecision,
-    UpdatePlanTool, UpdateTitleTool, UserAgentsMd, WebSearchTool, WorkspaceTool, WriteFileTool,
-    decide_permission_from_settings,
+    InspectElementTool, ListDirectoryTool, MovePathTool, ProjectSnapshot, ReadFileTool, RenameTool,
+    SpawnAgentTool, SystemPromptTemplate, Template, Templates, TerminalTool,
+    ToolPermissionDecision, UpdatePlanTool, UpdateTitleTool, UserAgentsMd, WebSearchTool,
+    WorkspaceTool, WriteFileTool, decide_permission_from_settings,
 };
 use acp_thread::{MentionUri, UserMessageId};
 use action_log::ActionLog;
@@ -1698,6 +1698,7 @@ impl Thread {
         self.add_tool(WebSearchTool);
 
         self.add_tool(DiagnosticsTool::new(self.project.clone()));
+        self.add_tool(InspectElementTool::new());
 
         let code_action_store: CodeActionStore = cx.new(|_cx| None);
         self.add_tool(FindReferencesTool::new(self.project.clone()));

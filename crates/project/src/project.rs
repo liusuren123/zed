@@ -1702,6 +1702,49 @@ impl Project {
         .await
     }
 
+    /// Join a remote project from a pre-obtained `JoinProjectResponse`.
+    ///
+    /// This is used for LAN peer-to-peer project sharing where the host
+    /// sends the response directly instead of going through a collab
+    /// server.
+    pub async fn join_remote_project(
+        response: TypedEnvelope<proto::JoinProjectResponse>,
+        client: Arc<Client>,
+        user_store: Entity<UserStore>,
+        languages: Arc<LanguageRegistry>,
+        fs: Arc<dyn Fs>,
+        cx: AsyncApp,
+    ) -> Result<Entity<Self>> {
+        let remote_id = response.payload.project_id;
+        let subscriptions = [
+            EntitySubscription::Project(client.subscribe_to_entity::<Self>(remote_id)?),
+            EntitySubscription::BufferStore(client.subscribe_to_entity::<BufferStore>(remote_id)?),
+            EntitySubscription::GitStore(client.subscribe_to_entity::<GitStore>(remote_id)?),
+            EntitySubscription::WorktreeStore(
+                client.subscribe_to_entity::<WorktreeStore>(remote_id)?,
+            ),
+            EntitySubscription::LspStore(client.subscribe_to_entity::<LspStore>(remote_id)?),
+            EntitySubscription::SettingsObserver(
+                client.subscribe_to_entity::<SettingsObserver>(remote_id)?,
+            ),
+            EntitySubscription::DapStore(client.subscribe_to_entity::<DapStore>(remote_id)?),
+            EntitySubscription::BreakpointStore(
+                client.subscribe_to_entity::<BreakpointStore>(remote_id)?,
+            ),
+        ];
+        Self::from_join_project_response(
+            response,
+            subscriptions,
+            client,
+            false,
+            user_store,
+            languages,
+            fs,
+            cx,
+        )
+        .await
+    }
+
     async fn from_join_project_response(
         response: TypedEnvelope<proto::JoinProjectResponse>,
         subscriptions: [EntitySubscription; 8],
