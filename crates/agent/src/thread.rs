@@ -963,6 +963,10 @@ pub struct Thread {
     title_generation_failed: bool,
     pending_summary_generation: Option<Shared<Task<Option<SharedString>>>>,
     summary: Option<SharedString>,
+    /// When set, the summary text covers all messages up to (and including) this
+    /// UserMessageId. `build_request_messages` uses the summary instead of older
+    /// messages, keeping only messages after this marker for full context.
+    context_summary_marker: Option<UserMessageId>,
     messages: Vec<Message>,
     user_store: Entity<UserStore>,
     /// Holds the task that handles agent interaction until the end of the turn.
@@ -1095,6 +1099,7 @@ impl Thread {
             title_generation_failed: false,
             pending_summary_generation: None,
             summary: None,
+            context_summary_marker: None,
             messages: Vec::new(),
             user_store: project.read(cx).user_store(),
             running_turn: None,
@@ -1414,6 +1419,7 @@ impl Thread {
             title_generation_failed: false,
             pending_summary_generation: None,
             summary: db_thread.detailed_summary,
+            context_summary_marker: None,
             messages: db_thread.messages,
             user_store: project.read(cx).user_store(),
             running_turn: None,
@@ -1999,7 +2005,6 @@ impl Thread {
         let (events_tx, events_rx) = mpsc::unbounded::<Result<ThreadEvent>>();
         let event_stream = ThreadEventStream(events_tx);
         let message_ix = self.messages.len().saturating_sub(1);
-        self.clear_summary();
         let (cancellation_tx, mut cancellation_rx) = watch::channel(false);
         self.running_turn = Some(RunningTurn {
             event_stream: event_stream.clone(),
@@ -2060,6 +2065,31 @@ impl Thread {
         let mut attempt = 0;
         let mut intent = CompletionIntent::UserPrompt;
         loop {
+            // Auto-compression check: when token usage approaches the model
+            // limit, summarize older messages to keep the context lean.
+            if attempt == 0 {
+                let needs_compression =
+                    this.read_with(cx, |this, _cx| this.should_compress_context())?;
+
+                if needs_compression {
+                    log::info!("Context approaching token limit, triggering auto-compression");
+                    let (summary_task, marker) = this.update(cx, |this, cx| {
+                        let marker = this.previous_user_message_id();
+                        let task = this.compress_context_summary(cx);
+                        (task, marker)
+                    })?;
+
+                    if let Some(_summary) = summary_task.await {
+                        log::info!("Context compression complete");
+                        this.update(cx, |this, _cx| {
+                            this.context_summary_marker = marker;
+                        })?;
+                    } else {
+                        log::warn!("Context compression failed, proceeding with full context");
+                    }
+                }
+            }
+
             // Re-read the model and refresh tools on each iteration so that
             // mid-turn changes (e.g. the user switches model, toggles tools,
             // or changes profile) take effect between tool-call rounds.
@@ -2762,6 +2792,28 @@ impl Thread {
         if let Some(task) = self.pending_summary_generation.clone() {
             return task;
         }
+        self.build_summary(false, cx)
+    }
+
+    /// Generate a summary for automatic context compression.
+    ///
+    /// Unlike [`summary`], this forces regeneration (ignoring the cache) and
+    /// excludes the final user prompt from the summarization so it can be
+    /// included separately in the completion request.
+    fn compress_context_summary(
+        &mut self,
+        cx: &mut Context<Self>,
+    ) -> Shared<Task<Option<SharedString>>> {
+        self.summary = None;
+        self.pending_summary_generation = None;
+        self.build_summary(true, cx)
+    }
+
+    fn build_summary(
+        &mut self,
+        exclude_last_user_message: bool,
+        cx: &mut Context<Self>,
+    ) -> Shared<Task<Option<SharedString>>> {
         let Some(model) = self.summarization_model.clone() else {
             log::error!("No summarization model available");
             return Task::ready(None).shared();
@@ -2772,8 +2824,70 @@ impl Thread {
             ..Default::default()
         };
 
-        for message in &self.messages {
-            request.messages.extend(message.to_request());
+        // When we already have a previous summary + marker, use incremental
+        // summarization: send the previous summary as context and only the
+        // new messages since the last compression.
+        if let (Some(prev_summary), Some(marker)) =
+            (self.summary.as_ref(), self.context_summary_marker.as_ref())
+        {
+            request.messages.push(LanguageModelRequestMessage {
+                role: Role::User,
+                content: vec![
+                    format!(
+                        "<previous_summary>\n{prev_summary}\n</previous_summary>\n\
+                     The summary above covers earlier parts of this conversation. \
+                     Please update it to incorporate the new messages below, \
+                     producing an updated concise summary."
+                    )
+                    .into(),
+                ],
+                cache: false,
+                reasoning_details: None,
+            });
+
+            let mut after_marker = false;
+            let last_user_id = if exclude_last_user_message {
+                self.last_user_message().map(|m| m.id.clone())
+            } else {
+                None
+            };
+            for message in &self.messages {
+                if !after_marker {
+                    if let Message::User(user_msg) = message {
+                        if &user_msg.id == marker {
+                            after_marker = true;
+                            continue;
+                        }
+                    }
+                    continue;
+                }
+                // Stop before the current user prompt when doing auto-compression.
+                if let Some(ref last_id) = last_user_id {
+                    if let Message::User(user_msg) = message {
+                        if &user_msg.id == last_id {
+                            break;
+                        }
+                    }
+                }
+                request.messages.extend(message.to_request());
+            }
+        } else {
+            // Full summarization: send all messages (optionally excluding the last user prompt).
+            let last_user_id = if exclude_last_user_message {
+                self.last_user_message().map(|m| m.id.clone())
+            } else {
+                None
+            };
+            for message in &self.messages {
+                if let Some(ref last_id) = last_user_id {
+                    if let Message::User(user_msg) = message {
+                        if &user_msg.id == last_id {
+                            break;
+                        }
+                    }
+                }
+                request.messages.extend(message.to_request());
+            }
         }
 
         request.messages.push(LanguageModelRequestMessage {
@@ -2899,6 +3013,21 @@ impl Thread {
     fn clear_summary(&mut self) {
         self.summary = None;
         self.pending_summary_generation = None;
+        self.context_summary_marker = None;
+    }
+
+    /// Returns `true` when token usage exceeds the compression threshold,
+    /// indicating we should summarize older messages before the next request.
+    fn should_compress_context(&self) -> bool {
+        const COMPRESSION_THRESHOLD: f64 = 0.80;
+        let Some(usage) = self.latest_token_usage() else {
+            return false;
+        };
+        if usage.max_tokens == 0 {
+            return false;
+        }
+        let ratio = usage.used_tokens as f64 / usage.max_tokens as f64;
+        ratio > COMPRESSION_THRESHOLD
     }
 
     fn last_user_message(&self) -> Option<&UserMessage> {
@@ -2910,6 +3039,22 @@ impl Thread {
                 Message::Agent(_) => None,
                 Message::Resume => None,
             })
+    }
+
+    /// Returns the user message immediately before the last one, used as the
+    /// compression boundary: messages up to this point are summarized, and
+    /// the final user prompt is always included in full.
+    fn previous_user_message_id(&self) -> Option<UserMessageId> {
+        let mut found_last = false;
+        for message in self.messages.iter().rev() {
+            if let Message::User(user_msg) = message {
+                if found_last {
+                    return Some(user_msg.id.clone());
+                }
+                found_last = true;
+            }
+        }
+        None
     }
 
     fn pending_message(&mut self) -> &mut AgentMessage {
@@ -2948,7 +3093,6 @@ impl Thread {
 
         self.messages.push(Message::Agent(message));
         self.updated_at = Utc::now();
-        self.clear_summary();
         cx.notify()
     }
 
@@ -3188,8 +3332,45 @@ impl Thread {
             cache: false,
             reasoning_details: None,
         }];
-        for message in &self.messages {
-            messages.extend(message.to_request());
+
+        // When context has been compressed, inject the summary as a context
+        // message and only include messages after the compression boundary.
+        if let (Some(summary), Some(marker)) = (&self.summary, &self.context_summary_marker) {
+            messages.push(LanguageModelRequestMessage {
+                role: Role::User,
+                content: vec![
+                    format!(
+                        "<conversation_history_summary>\n\
+                     The following is a summary of the earlier parts of \
+                     this conversation, including key facts, decisions made, \
+                     and work completed or in progress:\n\n\
+                     {summary}\n\
+                     </conversation_history_summary>\n\
+                     Continue helping the user based on all available context."
+                    )
+                    .into(),
+                ],
+                cache: false,
+                reasoning_details: None,
+            });
+
+            let mut after_marker = false;
+            for message in &self.messages {
+                if !after_marker {
+                    if let Message::User(user_msg) = message {
+                        if &user_msg.id == marker {
+                            after_marker = true;
+                            continue;
+                        }
+                    }
+                    continue;
+                }
+                messages.extend(message.to_request());
+            }
+        } else {
+            for message in &self.messages {
+                messages.extend(message.to_request());
+            }
         }
 
         if let Some(last_message) = messages.last_mut() {
