@@ -102,7 +102,8 @@ impl SearchQuery {
         match_full_paths: bool,
         buffers: Option<Vec<Entity<Buffer>>>,
     ) -> Result<Self> {
-        let query = query.to_string();
+        let mut query = query.to_string();
+        text::LineEnding::normalize(&mut query);
         if !case_sensitive && !query.is_ascii() {
             // AhoCorasickBuilder doesn't support case-insensitive search with unicode characters
             // Fallback to regex search as recommended by
@@ -187,7 +188,8 @@ impl SearchQuery {
         match_full_paths: bool,
         buffers: Option<Vec<Entity<Buffer>>>,
     ) -> Result<Self> {
-        let query = query.to_string();
+        let mut query = query.to_string();
+        text::LineEnding::normalize(&mut query);
         let inner = SearchInputs {
             query: Arc::from(query.as_str()),
             files_to_include,
@@ -397,6 +399,7 @@ impl SearchQuery {
                 let mut text = String::new();
                 if query_str.contains('\n') {
                     reader.read_to_string(&mut text)?;
+                    text::LineEnding::normalize(&mut text);
                     Ok(search.is_match(&text))
                 } else {
                     let mut bytes_read = 0;
@@ -420,6 +423,7 @@ impl SearchQuery {
                 let mut text = String::new();
                 if *multiline {
                     reader.read_to_string(&mut text)?;
+                    text::LineEnding::normalize(&mut text);
                     Ok(regex.is_match(&text)?)
                 } else {
                     let mut bytes_read = 0;
