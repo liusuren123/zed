@@ -123,6 +123,146 @@ enum RetryStrategy {
     },
 }
 
+/// Splits a stream of plain model text into `Text` / `Thinking` events by
+/// recognizing `<think>` / `</think>` style tag pairs that some reasoning
+/// models (e.g. DeepSeek R1, Qwen QwQ, and MiniMax-M3 served over OpenAI Chat)
+/// emit inline in their output rather than via a dedicated
+/// `reasoning_content` field.
+///
+/// The parser holds at most one fewer character than the longest supported
+/// tag so that a tag split across two SSE chunks is still recognized.
+/// Call `push` for each incoming chunk and `finish` when the stream ends
+/// to flush any leftover buffered text.
+struct ThinkTagParser {
+    state: ThinkTagState,
+    /// Holds the trailing characters that could be the start of a tag,
+    /// to be matched against the next chunk.
+    buffer: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ThinkTagState {
+    /// Looking for an open tag in regular text.
+    Normal,
+    /// Inside a thinking block, looking for a close tag.
+    Thinking,
+}
+
+#[derive(Debug)]
+enum ThinkEvent {
+    Text(String),
+    Thinking(String),
+}
+
+const THINK_OPEN_TAGS: &[&str] = &["<think>", "<memo:r>"];
+const THINK_CLOSE_TAGS: &[&str] = &[
+    "</think>",
+    "</memo:r>",
+];
+
+impl ThinkTagParser {
+    fn new() -> Self {
+        Self {
+            state: ThinkTagState::Normal,
+            buffer: String::new(),
+        }
+    }
+
+    fn reset(&mut self) {
+        self.state = ThinkTagState::Normal;
+        self.buffer.clear();
+    }
+
+    fn push(&mut self, chunk: &str, out: &mut Vec<ThinkEvent>) {
+        if chunk.is_empty() {
+            return;
+        }
+        self.buffer.push_str(chunk);
+        self.scan(out);
+    }
+
+    /// Flush any leftover buffered text. Call when the stream ends so we
+    /// don't drop the trailing characters held back for tag detection.
+    fn finish(&mut self, out: &mut Vec<ThinkEvent>) {
+        if self.buffer.is_empty() {
+            return;
+        }
+        let text = std::mem::take(&mut self.buffer);
+        match self.state {
+            ThinkTagState::Normal => out.push(ThinkEvent::Text(text)),
+            ThinkTagState::Thinking => out.push(ThinkEvent::Thinking(text)),
+        }
+    }
+
+    fn scan(&mut self, out: &mut Vec<ThinkEvent>) {
+        loop {
+            let (tags, next_state) = match self.state {
+                ThinkTagState::Normal => (THINK_OPEN_TAGS, ThinkTagState::Thinking),
+                ThinkTagState::Thinking => (THINK_CLOSE_TAGS, ThinkTagState::Normal),
+            };
+
+            let Some((idx, tag)) = find_tag(&self.buffer, tags) else {
+                // No complete tag in buffer. Emit everything except the
+                // last (tag_len - 1) characters as text, holding the rest
+                // back for the next chunk in case it completes a tag.
+                self.flush_unambiguous(out);
+                return;
+            };
+
+            if idx > 0 {
+                let text = self.buffer[..idx].to_string();
+                self.emit_chunk(text, out);
+            }
+            // Advance past the tag and switch state.
+            self.buffer.drain(..idx + tag.len());
+            self.state = next_state;
+        }
+    }
+
+    fn flush_unambiguous(&mut self, out: &mut Vec<ThinkEvent>) {
+        let (tags, _) = match self.state {
+            ThinkTagState::Normal => (THINK_OPEN_TAGS, ThinkTagState::Thinking),
+            ThinkTagState::Thinking => (THINK_CLOSE_TAGS, ThinkTagState::Normal),
+        };
+        let keep = max_tag_len_for(tags).saturating_sub(1);
+        if self.buffer.len() > keep {
+            let split = self.buffer.len() - keep;
+            let text = self.buffer[..split].to_string();
+            self.buffer.drain(..split);
+            self.emit_chunk(text, out);
+        }
+    }
+
+    fn emit_chunk(&self, text: String, out: &mut Vec<ThinkEvent>) {
+        if text.is_empty() {
+            return;
+        }
+        match self.state {
+            ThinkTagState::Normal => out.push(ThinkEvent::Text(text)),
+            ThinkTagState::Thinking => out.push(ThinkEvent::Thinking(text)),
+        }
+    }
+}
+
+fn max_tag_len_for(tags: &[&str]) -> usize {
+    tags.iter().map(|t| t.len()).max().unwrap_or(0)
+}
+
+/// Returns the earliest occurrence of any tag in `tags` within `text`,
+/// or `None` if no tag is present.
+fn find_tag<'a>(text: &str, tags: &'a [&'a str]) -> Option<(usize, &'a str)> {
+    let mut best: Option<(usize, &'a str)> = None;
+    for tag in tags {
+        if let Some(idx) = text.find(tag) {
+            match best {
+                Some((best_idx, _)) if idx >= best_idx => {}
+                _ => best = Some((idx, tag)),
+            }
+        }
+    }
+    best
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Message {
     User(UserMessage),
@@ -977,6 +1117,11 @@ pub struct Thread {
     /// Used to signal that the turn should end at the next message boundary.
     has_queued_message: bool,
     pending_message: Option<AgentMessage>,
+    /// Splits incoming `Text` events into `Text` / `Thinking` events by
+    /// recognizing inline `<think>` / `</mm:think>` style tag pairs.
+    /// Reset on each `StartMessage`; the stream is drained on Stop and on
+    /// `flush_pending_message`.
+    think_tag_parser: ThinkTagParser,
     pub(crate) tools: BTreeMap<SharedString, Arc<dyn AnyAgentTool>>,
     request_token_usage: HashMap<UserMessageId, language_model::TokenUsage>,
     #[allow(unused)]
@@ -1105,6 +1250,7 @@ impl Thread {
             running_turn: None,
             has_queued_message: false,
             pending_message: None,
+            think_tag_parser: ThinkTagParser::new(),
             tools: BTreeMap::default(),
             request_token_usage: HashMap::default(),
             cumulative_token_usage: TokenUsage::default(),
@@ -1425,6 +1571,7 @@ impl Thread {
             running_turn: None,
             has_queued_message: false,
             pending_message: None,
+            think_tag_parser: ThinkTagParser::new(),
             tools: BTreeMap::default(),
             request_token_usage: db_thread.request_token_usage.clone(),
             cumulative_token_usage: db_thread.cumulative_token_usage,
@@ -2386,6 +2533,7 @@ impl Thread {
             StartMessage { .. } => {
                 self.flush_pending_message(cx);
                 self.pending_message = Some(AgentMessage::default());
+                self.think_tag_parser.reset();
             }
             Text(new_text) => self.handle_text_event(new_text, event_stream),
             Thinking { text, signature } => {
@@ -2440,7 +2588,13 @@ impl Thread {
             }
             Stop(StopReason::Refusal) => return Err(CompletionError::Refusal.into()),
             Stop(StopReason::MaxTokens) => return Err(CompletionError::MaxTokens.into()),
-            Stop(StopReason::ToolUse | StopReason::EndTurn) => {}
+            Stop(StopReason::ToolUse | StopReason::EndTurn) => {
+                // Drain any text the think-tag parser is still holding back
+                // for tag-boundary detection. This is the only place the
+                // event_stream is still around for the remainder of the
+                // turn, so emit there as well.
+                self.finish_think_tag_parser(Some(event_stream));
+            }
             Started | Queued { .. } => {}
         }
 
@@ -2448,15 +2602,60 @@ impl Thread {
     }
 
     fn handle_text_event(&mut self, new_text: String, event_stream: &ThreadEventStream) {
-        event_stream.send_text(&new_text);
+        let mut events = Vec::new();
+        self.think_tag_parser.push(&new_text, &mut events);
+        for event in events {
+            self.append_think_event(event, Some(event_stream));
+        }
+    }
 
-        let last_message = self.pending_message();
-        if let Some(AgentMessageContent::Text(text)) = last_message.content.last_mut() {
-            text.push_str(&new_text);
-        } else {
-            last_message
-                .content
-                .push(AgentMessageContent::Text(new_text));
+    /// Apply a single `ThinkEvent` to the pending message and (optionally)
+    /// to the streaming event channel. The optional stream is `None` only
+    /// when called from `flush_pending_message`, where the stream is no
+    /// longer being consumed and the pending text just needs to land in
+    /// the message content.
+    fn append_think_event(&mut self, event: ThinkEvent, event_stream: Option<&ThreadEventStream>) {
+        match event {
+            ThinkEvent::Text(text) => {
+                if let Some(stream) = event_stream {
+                    stream.send_text(&text);
+                }
+                let last_message = self.pending_message();
+                if let Some(AgentMessageContent::Text(existing)) = last_message.content.last_mut() {
+                    existing.push_str(&text);
+                } else {
+                    last_message.content.push(AgentMessageContent::Text(text));
+                }
+            }
+            ThinkEvent::Thinking(text) => {
+                if let Some(stream) = event_stream {
+                    stream.send_thinking(&text);
+                }
+                let last_message = self.pending_message();
+                if let Some(AgentMessageContent::Thinking {
+                    text: existing_text,
+                    ..
+                }) = last_message.content.last_mut()
+                {
+                    existing_text.push_str(&text);
+                } else {
+                    last_message.content.push(AgentMessageContent::Thinking {
+                        text,
+                        signature: None,
+                    });
+                }
+            }
+        }
+    }
+
+    /// Drain any text the think-tag parser is still holding back for
+    /// tag-boundary detection. Idempotent: a no-op if the buffer is
+    /// already empty.
+    fn finish_think_tag_parser(&mut self, event_stream: Option<&ThreadEventStream>) {
+        let mut events = Vec::new();
+        self.think_tag_parser.finish(&mut events);
+        for event in events {
+            self.append_think_event(event, event_stream);
         }
     }
 
@@ -3062,6 +3261,11 @@ impl Thread {
     }
 
     fn flush_pending_message(&mut self, cx: &mut Context<Self>) {
+        // Drain any leftover text held back by the think-tag parser.
+        // The stream is no longer being consumed at this point, so we
+        // pass `None` and just commit the text to the message content.
+        self.finish_think_tag_parser(None);
+
         let Some(mut message) = self.pending_message.take() else {
             return;
         };
@@ -5242,5 +5446,232 @@ mod tests {
             );
             assert!(last_message.tool_results.contains_key(&tool_use_id));
         })
+    }
+
+    fn collect_events(parser: &mut ThinkTagParser, chunks: &[&str]) -> Vec<ThinkEvent> {
+        let mut out = Vec::new();
+        for chunk in chunks {
+            parser.push(chunk, &mut out);
+        }
+        parser.finish(&mut out);
+        out
+    }
+
+    fn merge_events(events: Vec<ThinkEvent>) -> Vec<ThinkEvent> {
+        // The parser emits small chunks (it holds back tag_len-1
+        // chars for boundary detection). The agent folds consecutive
+        // same-kind events back together; this helper mirrors that.
+        let mut out: Vec<ThinkEvent> = Vec::new();
+        for ev in events {
+            match (out.last_mut(), &ev) {
+                (Some(ThinkEvent::Text(existing)), ThinkEvent::Text(new)) => {
+                    existing.push_str(new);
+                }
+                (Some(ThinkEvent::Thinking(existing)), ThinkEvent::Thinking(new)) => {
+                    existing.push_str(new);
+                }
+                _ => out.push(ev),
+            }
+        }
+        out
+    }
+
+    fn kinds(events: &[ThinkEvent]) -> Vec<&'static str> {
+        events
+            .iter()
+            .map(|e| match e {
+                ThinkEvent::Text(_) => "Text",
+                ThinkEvent::Thinking(_) => "Thinking",
+            })
+            .collect()
+    }
+
+    #[test]
+    fn think_tag_parser_passthrough_for_plain_text() {
+        let mut p = ThinkTagParser::new();
+        let events = merge_events(collect_events(&mut p, &["Hello, world!"]));
+        assert_eq!(kinds(&events), vec!["Text"]);
+        if let ThinkEvent::Text(text) = &events[0] {
+            assert_eq!(text, "Hello, world!");
+        } else {
+            panic!("expected Text event");
+        }
+    }
+
+    #[test]
+    fn think_tag_parser_splits_simple_block() {
+        let mut p = ThinkTagParser::new();
+        let events = merge_events(collect_events(
+            &mut p,
+            &["Hello <think>reasoning here</think> world"],
+        ));
+        assert_eq!(
+            kinds(&events),
+            vec!["Text", "Thinking", "Text"],
+            "events: {events:?}"
+        );
+        if let ThinkEvent::Text(text) = &events[0] {
+            assert_eq!(text, "Hello ");
+        }
+        if let ThinkEvent::Thinking(text) = &events[1] {
+            assert_eq!(text, "reasoning here");
+        }
+        if let ThinkEvent::Text(text) = &events[2] {
+            assert_eq!(text, " world");
+        }
+    }
+
+    #[test]
+    fn think_tag_parser_handles_minimax_style_tags() {
+        // Build the input via runtime string construction so the
+        // literal tag chars (which the surrounding tooling mangles)
+        // and the CJK content (which exceeds the `\x` byte escape
+        // range) both survive intact.
+        let open = std::str::from_utf8(b"<\x6d\x65\x6d\x6f\x3a\x72\x3e").unwrap();
+        let close = std::str::from_utf8(b"<\x2f\x6d\x65\x6d\x6f\x3a\x72\x3e").unwrap();
+        let cjk = std::str::from_utf8(b"\xe6\x88\x91\xe6\x98\xaf\xe6\x80\x9d\xe8\x80\x83\xe5\x86\x85\xe5\xae\xb9").unwrap();
+        let mut input = String::from("before ");
+        input.push_str(open);
+        input.push_str(cjk);
+        input.push(' ');
+        input.push_str(close);
+        input.push_str(" after");
+        let mut p = ThinkTagParser::new();
+        let events = merge_events(collect_events(&mut p, &[input.as_str()]));
+        assert_eq!(
+            kinds(&events),
+            vec!["Text", "Thinking", "Text"],
+            "events: {events:?}"
+        );
+        if let ThinkEvent::Text(text) = &events[0] {
+            assert_eq!(text, "before ");
+        }
+        if let ThinkEvent::Thinking(text) = &events[1] {
+            // The parser includes the trailing space from the
+            // model output; trim it for the assertion.
+            assert_eq!(text.trim_end(), cjk);
+        }
+        if let ThinkEvent::Text(text) = &events[2] {
+            assert_eq!(text, " after");
+        }
+    }
+
+    #[test]
+    fn think_tag_parser_handles_tag_split_across_chunks() {
+        let mut p = ThinkTagParser::new();
+        let events = merge_events(collect_events(
+            &mut p,
+            &[
+                "before <th",
+                "ink>reasoning across chunks</",
+                "think> after",
+            ],
+        ));
+        assert_eq!(
+            kinds(&events),
+            vec!["Text", "Thinking", "Text"],
+            "events: {events:?}"
+        );
+        if let ThinkEvent::Text(text) = &events[0] {
+            assert_eq!(text, "before ");
+        }
+        if let ThinkEvent::Thinking(text) = &events[1] {
+            assert_eq!(text, "reasoning across chunks");
+        }
+        if let ThinkEvent::Text(text) = &events[2] {
+            assert_eq!(text, " after");
+        }
+    }
+
+    #[test]
+    fn think_tag_parser_handles_multiple_blocks() {
+        let mut p = ThinkTagParser::new();
+        let events = merge_events(collect_events(
+            &mut p,
+            &["<think>first</think> middle <think>second</think> end"],
+        ));
+        assert_eq!(
+            kinds(&events),
+            vec!["Thinking", "Text", "Thinking", "Text"],
+            "events: {events:?}"
+        );
+        if let ThinkEvent::Thinking(text) = &events[0] {
+            assert_eq!(text, "first");
+        }
+        if let ThinkEvent::Text(text) = &events[1] {
+            assert_eq!(text, " middle ");
+        }
+        if let ThinkEvent::Thinking(text) = &events[2] {
+            assert_eq!(text, "second");
+        }
+        if let ThinkEvent::Text(text) = &events[3] {
+            assert_eq!(text, " end");
+        }
+    }
+
+    #[test]
+    fn think_tag_parser_finish_emits_buffered_tail() {
+        // Stream ends mid-word: the parser should still emit the
+        // remaining buffered text rather than drop it.
+        let mut p = ThinkTagParser::new();
+        let events = merge_events(collect_events(&mut p, &["hello w"]));
+        assert_eq!(kinds(&events), vec!["Text"]);
+        if let ThinkEvent::Text(text) = &events[0] {
+            assert_eq!(text, "hello w");
+        } else {
+            panic!("expected Text event");
+        }
+    }
+
+    #[test]
+    fn think_tag_parser_finish_emits_thinking_tail_when_unclosed() {
+        // If the model never closes the thinking block, finish()
+        // should still surface the remaining text as Thinking
+        // rather than drop it.
+        let mut p = ThinkTagParser::new();
+        let events = merge_events(collect_events(
+            &mut p,
+            &["<think>reasoning that never closed"],
+        ));
+        assert_eq!(kinds(&events), vec!["Thinking"]);
+        if let ThinkEvent::Thinking(text) = &events[0] {
+            assert_eq!(text, "reasoning that never closed");
+        } else {
+            panic!("expected Thinking event");
+        }
+    }
+
+    #[test]
+    fn think_tag_parser_does_not_split_unrelated_brackets() {
+        // Plain text that contains XML-ish markup but no thinking
+        // tags should be passed through untouched.
+        let mut p = ThinkTagParser::new();
+        let events = merge_events(collect_events(
+            &mut p,
+            &["the </body> tag and <custom> elements"],
+        ));
+        assert_eq!(kinds(&events), vec!["Text"]);
+        if let ThinkEvent::Text(text) = &events[0] {
+            assert_eq!(text, "the </body> tag and <custom> elements");
+        } else {
+            panic!("expected Text event");
+        }
+    }
+
+    #[test]
+    fn think_tag_parser_reset_clears_state() {
+        let mut p = ThinkTagParser::new();
+        p.push("<think>unfinished", &mut Vec::new());
+        p.reset();
+        let mut out = Vec::new();
+        p.push("hello", &mut out);
+        p.finish(&mut out);
+        let out = merge_events(out);
+        assert_eq!(kinds(&out), vec!["Text"]);
+        if let ThinkEvent::Text(text) = &out[0] {
+            assert_eq!(text, "hello");
+        } else {
+            panic!("expected Text event");
+        }
     }
 }
