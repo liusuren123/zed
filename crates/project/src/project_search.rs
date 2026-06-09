@@ -16,7 +16,7 @@ use fs::Fs;
 use futures::FutureExt as _;
 use futures::{SinkExt, StreamExt, select_biased, stream::FuturesOrdered};
 use gpui::{App, AppContext, AsyncApp, BackgroundExecutor, Entity, Priority, Task};
-use language::{Buffer, BufferSnapshot};
+use language::{Buffer, BufferSnapshot, ByteContent, analyze_byte_content};
 use parking_lot::Mutex;
 use postage::oneshot;
 use rpc::{AnyProtoClient, proto};
@@ -765,21 +765,28 @@ impl RequestHandler<'_> {
             let mut file = BufReader::new(file);
             let file_start = file.fill_buf()?;
 
-            if let Err(Some(starting_position)) =
-                std::str::from_utf8(file_start).map_err(|e| e.error_len())
-            {
-                // Before attempting to match the file content, throw away files that have invalid UTF-8 sequences early on;
-                // That way we can still match files in a streaming fashion without having look at "obviously binary" files.
-                log::debug!(
-                    "Invalid UTF-8 sequence in file {abs_path:?} \
-                    at byte position {starting_position}"
-                );
+            // Skip binary files (images, archives, etc.) but allow non-UTF-8 text
+            // encodings like GBK, Shift-JIS, etc. to proceed to content detection.
+            if analyze_byte_content(file_start) == ByteContent::Binary {
                 return Ok(());
             }
 
-            if self.query.detect(file).await.unwrap_or(false) {
-                // Yes, we should scan the whole file.
-                entry.should_scan_tx.send(entry.path).await?;
+            match self.query.detect(file).await {
+                Ok(true) => {
+                    entry.should_scan_tx.send(entry.path).await?;
+                }
+                Ok(false) => {
+                    // File does not contain a match.
+                }
+                Err(error) => {
+                    // May fail on non-UTF-8 files since detect uses String-based
+                    // line reading. Treat as a potential match and let the buffer
+                    // loading path handle proper decoding via encoding_rs.
+                    log::debug!(
+                        "Failed to detect match in {abs_path:?}: {error:?}, treating as potential match"
+                    );
+                    entry.should_scan_tx.send(entry.path).await?;
+                }
             }
             Ok(())
         }
