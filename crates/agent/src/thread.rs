@@ -10,8 +10,7 @@ use crate::{
 use acp_thread::{MentionUri, UserMessageId};
 use action_log::ActionLog;
 use feature_flags::{
-    FeatureFlagAppExt as _, LspToolFeatureFlag, RenameToolFeatureFlag, UpdatePlanToolFeatureFlag,
-    UpdateTitleToolFeatureFlag,
+    FeatureFlagAppExt as _, UpdatePlanToolFeatureFlag, UpdateTitleToolFeatureFlag,
 };
 
 use agent_client_protocol::schema as acp;
@@ -155,10 +154,7 @@ enum ThinkEvent {
 }
 
 const THINK_OPEN_TAGS: &[&str] = &["<think>", "<memo:r>"];
-const THINK_CLOSE_TAGS: &[&str] = &[
-    "</think>",
-    "</memo:r>",
-];
+const THINK_CLOSE_TAGS: &[&str] = &["</think>", "</memo:r>"];
 
 impl ThinkTagParser {
     fn new() -> Self {
@@ -3392,14 +3388,7 @@ impl Thread {
                     None
                 }
             })
-            .filter(|(tool_name, _)| match tool_name.as_ref() {
-                RenameTool::NAME => cx.has_flag::<RenameToolFeatureFlag>(),
-                FindReferencesTool::NAME
-                | GetCodeActionsTool::NAME
-                | ApplyCodeActionTool::NAME
-                | GoToDefinitionTool::NAME => cx.has_flag::<LspToolFeatureFlag>(),
-                _ => true,
-            })
+            .filter(|(tool_name, _)| crate::tools::tool_feature_flag_enabled(tool_name, cx))
             .collect::<BTreeMap<_, _>>();
 
         let mut context_server_tools = Vec::new();
@@ -5529,7 +5518,10 @@ mod tests {
         // range) both survive intact.
         let open = std::str::from_utf8(b"<\x6d\x65\x6d\x6f\x3a\x72\x3e").unwrap();
         let close = std::str::from_utf8(b"<\x2f\x6d\x65\x6d\x6f\x3a\x72\x3e").unwrap();
-        let cjk = std::str::from_utf8(b"\xe6\x88\x91\xe6\x98\xaf\xe6\x80\x9d\xe8\x80\x83\xe5\x86\x85\xe5\xae\xb9").unwrap();
+        let cjk = std::str::from_utf8(
+            b"\xe6\x88\x91\xe6\x98\xaf\xe6\x80\x9d\xe8\x80\x83\xe5\x86\x85\xe5\xae\xb9",
+        )
+        .unwrap();
         let mut input = String::from("before ");
         input.push_str(open);
         input.push_str(cjk);
