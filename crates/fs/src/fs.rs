@@ -1335,39 +1335,6 @@ struct FakeFsState {
     moves: std::collections::HashMap<u64, PathBuf>,
     job_event_subscribers: Arc<Mutex<Vec<JobEventSender>>>,
     trash: Vec<(TrashedEntry, FakeFsEntry)>,
-    file_to_create_before_watch_add: Option<(PathBuf, PathBuf)>,
-}
-
-#[cfg(feature = "test-support")]
-impl FakeFsState {
-    fn create_file_before_watch_add(&mut self, watch_path: &Path) -> Result<()> {
-        let Some((pending_watch_path, file_path)) = self.file_to_create_before_watch_add.take()
-        else {
-            return Ok(());
-        };
-        if pending_watch_path != watch_path {
-            self.file_to_create_before_watch_add = Some((pending_watch_path, file_path));
-            return Ok(());
-        }
-
-        let inode = self.get_and_increment_inode();
-        let mtime = self.get_and_increment_mtime();
-        self.write_path(&file_path, |entry| {
-            let btree_map::Entry::Vacant(entry) = entry else {
-                anyhow::bail!("file already exists: {}", file_path.display());
-            };
-            entry.insert(FakeFsEntry::File {
-                inode,
-                mtime,
-                len: 0,
-                content: Vec::new(),
-                git_dir_path: None,
-            });
-            Ok(())
-        })?;
-        self.emit_event([(file_path, Some(PathEventKind::Created))]);
-        Ok(())
-    }
 }
 
 #[cfg(feature = "test-support")]
@@ -1654,7 +1621,6 @@ impl FakeFs {
                 moves: Default::default(),
                 job_event_subscribers: Arc::new(Mutex::new(Vec::new())),
                 trash: Vec::new(),
-                file_to_create_before_watch_add: None,
             })),
         });
 
@@ -1828,17 +1794,6 @@ impl FakeFs {
 
     pub fn clear_buffered_events(&self) {
         self.state.lock().buffered_events.clear();
-    }
-
-    pub fn create_file_before_next_watch_add(
-        &self,
-        watch_path: impl AsRef<Path>,
-        path: impl AsRef<Path>,
-    ) {
-        self.state.lock().file_to_create_before_watch_add = Some((
-            normalize_path(watch_path.as_ref()),
-            normalize_path(path.as_ref()),
-        ));
     }
 
     pub fn flush_events(&self, count: usize) {
@@ -2636,6 +2591,7 @@ impl FakeFsEntry {
 #[cfg(feature = "test-support")]
 struct FakeWatcher {
     tx: async_channel::Sender<Vec<PathEvent>>,
+    original_path: PathBuf,
     fs_state: Arc<Mutex<FakeFsState>>,
     prefixes: Mutex<Vec<PathBuf>>,
 }
@@ -2643,34 +2599,19 @@ struct FakeWatcher {
 #[cfg(feature = "test-support")]
 impl Watcher for FakeWatcher {
     fn add(&self, path: &Path) -> Result<()> {
-        let path = normalize_path(path);
-        self.fs_state
-            .try_lock()
-            .unwrap()
-            .create_file_before_watch_add(&path)?;
-
-        let mut prefixes = self.prefixes.lock();
-        if prefixes.iter().any(|prefix| path.starts_with(prefix)) {
+        if path.starts_with(&self.original_path) {
             return Ok(());
         }
-
         self.fs_state
             .try_lock()
             .unwrap()
             .event_txs
-            .push((path.clone(), self.tx.clone()));
-        prefixes.push(path);
+            .push((path.to_owned(), self.tx.clone()));
+        self.prefixes.lock().push(path.to_owned());
         Ok(())
     }
 
-    fn remove(&self, path: &Path) -> Result<()> {
-        let path = normalize_path(path);
-        self.prefixes.lock().retain(|prefix| prefix != &path);
-        self.fs_state
-            .try_lock()
-            .unwrap()
-            .event_txs
-            .retain(|(watched_path, _)| watched_path != &path);
+    fn remove(&self, _: &Path) -> Result<()> {
         Ok(())
     }
 }
@@ -3124,6 +3065,7 @@ impl Fs for FakeFs {
         let executor = self.executor.clone();
         let watcher = Arc::new(FakeWatcher {
             tx,
+            original_path: path.to_owned(),
             fs_state: self.state.clone(),
             prefixes: Mutex::new(vec![path]),
         });
