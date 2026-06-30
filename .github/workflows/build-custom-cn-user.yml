@@ -86,11 +86,19 @@ jobs:
           cd upload
           tar czf ../../../zed-linux-x64.tar.gz zed zed_server 2>/dev/null || tar czf ../../../zed-linux-x64.tar.gz zed
 
-      - name: Upload to Release
+      - name: Upload Artifact (Actions page)
+        uses: actions/upload-artifact@v4
+        with:
+          name: zed-linux-x64-${{ github.sha }}
+          path: target/release/zed
+          if-no-files-found: error
+
+      - name: Upload to Release (Releases page)
+        continue-on-error: true
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
-          artifactErrorsFailBuild: true
+          artifactErrorsFailBuild: false
           artifacts: "zed-linux-x64.tar.gz"
           body: "Automated build of custom-for-cn-user branch (${{ github.sha }})"
           commit: custom-for-cn-user
