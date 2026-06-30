@@ -41,8 +41,6 @@ jobs:
             llvm-dev \
             libclang-dev \
             clang \
-            libc++-dev \
-            libc++abi-dev \
             libxcursor-dev \
             libxrandr-dev \
             libxinerama-dev \
@@ -55,16 +53,12 @@ jobs:
             libcairo2-dev \
             libatk1.0-dev \
             libgdk-pixbuf-2.0-dev \
-            libsoup2.4-dev \
-            libjavascriptcoregtk-4.0-dev \
-            libwebkit2gtk-4.0-dev \
-            libvlc-dev \
-            libvlccore-dev \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libwebkit2gtk-4.1-dev \
             libpulse-dev \
             libzstd-dev \
             libxrandr-dev \
-            libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -113,8 +107,6 @@ jobs:
             llvm-dev \
             libclang-dev \
             clang \
-            libc++-dev \
-            libc++abi-dev \
             libxcursor-dev \
             libxrandr-dev \
             libxinerama-dev \
@@ -127,16 +119,12 @@ jobs:
             libcairo2-dev \
             libatk1.0-dev \
             libgdk-pixbuf-2.0-dev \
-            libsoup2.4-dev \
-            libjavascriptcoregtk-4.0-dev \
-            libwebkit2gtk-4.0-dev \
-            libvlc-dev \
-            libvlccore-dev \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libwebkit2gtk-4.1-dev \
             libpulse-dev \
             libzstd-dev \
             libxrandr-dev \
-            libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -192,8 +180,6 @@ jobs:
             llvm-dev \
             libclang-dev \
             clang \
-            libc++-dev \
-            libc++abi-dev \
             libxcursor-dev \
             libxrandr-dev \
             libxinerama-dev \
@@ -206,16 +192,12 @@ jobs:
             libcairo2-dev \
             libatk1.0-dev \
             libgdk-pixbuf-2.0-dev \
-            libsoup2.4-dev \
-            libjavascriptcoregtk-4.0-dev \
-            libwebkit2gtk-4.0-dev \
-            libvlc-dev \
-            libvlccore-dev \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libwebkit2gtk-4.1-dev \
             libpulse-dev \
             libzstd-dev \
             libxrandr-dev \
-            libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
