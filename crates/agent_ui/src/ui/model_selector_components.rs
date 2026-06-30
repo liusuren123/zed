@@ -1,5 +1,8 @@
-use gpui::{Action, ClickEvent, FocusHandle, prelude::*};
+use gpui::{Action, ClickEvent, FocusHandle, SharedString, prelude::*};
 use ui::{Chip, ElevationIndex, KeyBinding, ListItem, ListItemSpacing, Tooltip, prelude::*};
+
+#[derive(Clone, Debug)]
+pub struct DisabledReason(pub SharedString);
 use zed_actions::agent::ToggleModelSelector;
 
 use crate::CycleFavoriteModels;
@@ -56,9 +59,6 @@ pub struct ModelSelectorListItem {
     on_toggle_favorite: Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>>,
     cost_info: Option<SharedString>,
 }
-
-#[derive(Clone, Debug)]
-pub struct DisabledReason(pub SharedString);
 
 impl ModelSelectorListItem {
     pub fn new(index: usize, title: impl Into<SharedString>) -> Self {
