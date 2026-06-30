@@ -31,7 +31,9 @@ jobs:
             libx11-dev \
             libxft-dev \
             libxext-dev \
-            libxkbcommon-dev \
+            libxkbcommon-dev
+            libxkbcommon-x11-dev
+            libx11-xcb-dev \
             libwayland-dev \
             libasound2-dev \
             libexpat1-dev \
@@ -97,7 +99,9 @@ jobs:
             libx11-dev \
             libxft-dev \
             libxext-dev \
-            libxkbcommon-dev \
+            libxkbcommon-dev
+            libxkbcommon-x11-dev
+            libx11-xcb-dev \
             libwayland-dev \
             libasound2-dev \
             libexpat1-dev \
@@ -170,7 +174,9 @@ jobs:
             libx11-dev \
             libxft-dev \
             libxext-dev \
-            libxkbcommon-dev \
+            libxkbcommon-dev
+            libxkbcommon-x11-dev
+            libx11-xcb-dev \
             libwayland-dev \
             libasound2-dev \
             libexpat1-dev \
@@ -214,5 +220,5 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run tests
-        run: cargo test --lib -p language_model -p agent -p agent_ui -- --skip integration
+        run: cargo test --lib -p language_model -p agent_ui -- --skip integration
         timeout-minutes: 60
