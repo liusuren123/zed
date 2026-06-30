@@ -1,0 +1,101 @@
+name: Build custom-for-cn-user
+
+on:
+  push:
+    branches:
+      - custom-for-cn-user
+  pull_request:
+    branches:
+      - custom-for-cn-user
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: cargo check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: custom-for-cn-user
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: rust-src, clippy, rustfmt
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: cargo check
+        run: cargo check --workspace --lib
+        timeout-minutes: 60
+
+  build:
+    name: Build Release
+    runs-on: windows-latest
+    needs: [check]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: custom-for-cn-user
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: rust-src, clippy, rustfmt
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Release
+        run: cargo build --release --package zed
+        timeout-minutes: 120
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zed-${{ github.sha }}
+          path: target/release/zed.exe
+          if-no-files-found: error
+
+  test:
+    name: cargo test
+    runs-on: ubuntu-latest
+    needs: [check]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: custom-for-cn-user
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: rust-src
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: cargo test --lib -p language_model -p agent -p agent_ui -- --skip integration
+        timeout-minutes: 60
