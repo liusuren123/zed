@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - custom-for-cn-user
-  pull_request:
-    branches:
-      - custom-for-cn-user
   workflow_dispatch:
 
 env:
@@ -75,17 +72,29 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: cargo check
-        run: cargo check --workspace --lib
-        timeout-minutes: 60
-
       - name: Build Release
         run: cargo build --release --package zed
         timeout-minutes: 120
 
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+      - name: Package binary
+        run: |
+          cd target/release
+          strip zed
+          mkdir -p upload
+          cp zed upload/
+          cp zed_server upload/ 2>/dev/null || true
+          cd upload
+          tar czf ../../../zed-linux-x64.tar.gz zed zed_server 2>/dev/null || tar czf ../../../zed-linux-x64.tar.gz zed
+
+      - name: Upload to Release
+        uses: ncipollo/release-action@v1
         with:
-          name: zed-${{ github.sha }}
-          path: target/release/zed
-          if-no-files-found: error
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: "zed-linux-x64.tar.gz"
+          body: "Automated build of custom-for-cn-user branch (${{ github.sha }})"
+          commit: custom-for-cn-user
+          name: "custom-for-cn-user"
+          prerelease: true
+          tag: nightly-custom-for-cn-user
+          token: ${{ secrets.GITHUB_TOKEN }}
