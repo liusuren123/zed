@@ -2458,7 +2458,7 @@ impl AcpThread {
 
                         let canceled = matches!(r.stop_reason, acp::StopReason::Cancelled);
                         if canceled {
-                            this.mark_pending_tools_as_canceled();
+                            this.mark_pending_entries_as_canceled(cx);
                         }
 
                         if !canceled {
@@ -2536,13 +2536,13 @@ impl AcpThread {
         self.connection.cancel(&self.session_id, cx);
 
         Self::flush_streaming_text(&mut self.streaming_text_buffer, cx);
-        self.mark_pending_tools_as_canceled();
+        self.mark_pending_entries_as_canceled(cx);
 
         // Wait for the send task to complete
         cx.background_spawn(turn.send_task)
     }
 
-    fn mark_pending_tools_as_canceled(&mut self) {
+    fn mark_pending_entries_as_canceled(&mut self, _cx: &mut Context<Self>) {
         for entry in self.entries.iter_mut() {
             if let AgentThreadEntry::ToolCall(call) = entry {
                 let cancel = matches!(
