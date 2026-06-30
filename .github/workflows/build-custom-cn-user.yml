@@ -11,8 +11,8 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  build:
-    name: Build Release
+  build-linux:
+    name: Build Linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -86,30 +86,80 @@ jobs:
 
       - name: Package binary
         run: |
-          cd target/release
-          strip zed
-          cp zed ../../
-          cd ../..
+          strip target/release/zed
+          cp target/release/zed zed
           tar czf zed-linux-x64.tar.gz zed
           ls -lh zed-linux-x64.tar.gz
 
-      - name: Upload Artifact (Actions page)
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: zed-linux-x64-${{ github.sha }}
           path: zed-linux-x64.tar.gz
           if-no-files-found: error
 
-      - name: Upload to Release (Releases page)
+      - uses: ncipollo/release-action@v1
         continue-on-error: true
-        uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
           artifactErrorsFailBuild: false
           artifacts: "zed-linux-x64.tar.gz"
-          body: "Automated build of custom-for-cn-user branch (${{ github.sha }})"
-          commit: custom-for-cn-user
-          name: "custom-for-cn-user"
+          omitBody: true
+          omitNameDuringUpdate: true
           prerelease: true
+          replacesArtifacts: true
+          tag: nightly-custom-for-cn-user
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: custom-for-cn-user
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: rust-src, clippy, rustfmt
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Release
+        run: cargo build --release --package zed
+        timeout-minutes: 120
+
+      - name: Package binary
+        run: |
+          cd target/release
+          cp zed.exe ${{ github.workspace }}\zed.exe
+          cd ${{ github.workspace }}
+          7z a -tzip zed-windows-x64.zip zed.exe
+          del zed.exe
+          dir zed-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zed-windows-x64-${{ github.sha }}
+          path: zed-windows-x64.zip
+          if-no-files-found: error
+
+      - uses: ncipollo/release-action@v1
+        continue-on-error: true
+        with:
+          allowUpdates: true
+          artifactErrorsFailBuild: false
+          artifacts: "zed-windows-x64.zip"
+          omitBody: true
+          omitNameDuringUpdate: true
+          prerelease: true
+          replacesArtifacts: true
           tag: nightly-custom-for-cn-user
           token: ${{ secrets.GITHUB_TOKEN }}
