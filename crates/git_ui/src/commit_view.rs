@@ -1064,7 +1064,6 @@ impl Item for CommitView {
             return Task::ready(None);
         };
         let project = self.project.clone();
-        let diff_view_style = self.editor.read(cx).diff_view_style();
         let multibuffer = self.multibuffer.clone();
         Task::ready(Some(cx.new(|cx| {
             let commit_view = cx.weak_entity();

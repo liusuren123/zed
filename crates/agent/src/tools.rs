@@ -32,8 +32,8 @@ mod write_file_tool;
 
 use crate::AgentTool;
 use feature_flags::{
-    CreateThreadToolFeatureFlag, FeatureFlagAppExt as _, LspToolFeatureFlag, RenameToolFeatureFlag,
-    UpdatePlanToolFeatureFlag, UpdateTitleToolFeatureFlag,
+    FeatureFlagAppExt as _, LspToolFeatureFlag, RenameToolFeatureFlag, UpdatePlanToolFeatureFlag,
+    UpdateTitleToolFeatureFlag,
 };
 use gpui::App;
 use language_model::{LanguageModelRequestTool, LanguageModelToolSchemaFormat};
@@ -220,9 +220,7 @@ pub fn tool_feature_flag_enabled(tool_name: &str, cx: &App) -> bool {
         | GetCodeActionsTool::NAME
         | ApplyCodeActionTool::NAME
         | GoToDefinitionTool::NAME => cx.has_flag::<LspToolFeatureFlag>(),
-        CreateThreadTool::NAME | ListAgentsAndModelsTool::NAME => {
-            cx.has_flag::<CreateThreadToolFeatureFlag>()
-        }
+
         UpdatePlanTool::NAME => cx.has_flag::<UpdatePlanToolFeatureFlag>(),
         UpdateTitleTool::NAME => cx.has_flag::<UpdateTitleToolFeatureFlag>(),
         _ => true,
