@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
 
 jobs:
   build:
@@ -72,6 +73,13 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          sudo rm -rf /opt/hostedtoolcache/CodeQL /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache/Python /usr/share/swift
+          df -h / | tail -1
+
       - name: Build Release
         run: cargo build --release --package zed
         timeout-minutes: 120
@@ -80,17 +88,16 @@ jobs:
         run: |
           cd target/release
           strip zed
-          mkdir -p upload
-          cp zed upload/
-          cp zed_server upload/ 2>/dev/null || true
-          cd upload
-          tar czf ../../../zed-linux-x64.tar.gz zed zed_server 2>/dev/null || tar czf ../../../zed-linux-x64.tar.gz zed
+          cp zed ../../
+          cd ../..
+          tar czf zed-linux-x64.tar.gz zed
+          ls -lh zed-linux-x64.tar.gz
 
       - name: Upload Artifact (Actions page)
         uses: actions/upload-artifact@v4
         with:
           name: zed-linux-x64-${{ github.sha }}
-          path: target/release/zed
+          path: zed-linux-x64.tar.gz
           if-no-files-found: error
 
       - name: Upload to Release (Releases page)
