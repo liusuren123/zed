@@ -111,44 +111,43 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows:
-      name: Build Windows
-      runs-on: windows-latest
-      env:
-        # Force cargo to use the git CLI instead of libgit2, which has
-        # better handling of Windows long paths. python-environment-tools
-        # (transitively pulled in by `pet`) produces paths that exceed the
-        # default 260-char MAX_PATH limit on Windows.
-        CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-        # Move CARGO_HOME up one directory so paths like
-        # `C:\cargo\git\checkouts\python-environment-tools-...` stay under
-        # MAX_PATH. The default `C:\Users\<runner>\.cargo\...` is too long.
-        CARGO_HOME: C:\cargo
-      steps:
-        - uses: actions/checkout@v4
-          with:
-            ref: custom-for-cn-user
+    name: Build Windows
+    runs-on: windows-latest
+    env:
+      # Force cargo to use the git CLI instead of libgit2, which has better
+      # handling of Windows long paths. python-environment-tools (transitively
+      # pulled in by `pet`) produces paths that exceed the default 260-char
+      # MAX_PATH limit on Windows.
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      # Move CARGO_HOME from C:\Users\<runner>\.cargo to C:\cargo so paths
+      # like C:\cargo\git\checkouts\python-environment-tools-... stay shorter.
+      CARGO_HOME: C:\cargo
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: custom-for-cn-user
 
-        - name: Enable Windows long paths
-          # Allow git to handle paths longer than 260 characters.
-          run: git config --global core.longpaths true
+      - name: Enable Windows long paths
+        # Allow git to handle paths longer than 260 characters.
+        run: git config --global core.longpaths true
 
-        - name: Setup Rust
-          uses: dtolnay/rust-toolchain@stable
-          with:
-            toolchain: 1.95.0
-            components: rust-src, clippy, rustfmt
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: rust-src, clippy, rustfmt
 
-        - uses: actions/cache@v4
-          with:
-            path: |
-              C:\cargo\registry
-              C:\cargo\git
-              target
-            key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            C:\cargo\registry
+            C:\cargo\git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-        - name: Build Release
-          run: cargo build --release --package zed
-          timeout-minutes: 120
+      - name: Build Release
+        run: cargo build --release --package zed
+        timeout-minutes: 180
 
       - name: Package binary
         run: |
