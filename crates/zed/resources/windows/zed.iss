@@ -31,7 +31,7 @@ WizardStyle=modern
 
 CloseApplications=force
 
-#if GetEnv("CI") != ""
+#if GetEnv("CI") != "" && GetEnv("SKIP_SIGNING") == ""
 SignTool=Defaultsign
 #endif
 
