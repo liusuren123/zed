@@ -164,6 +164,39 @@ jobs:
         shell: pwsh
         run: cargo install cargo-about --version 0.8.2 --locked
 
+      - name: Locate build tools
+        # Debug: confirm VS DevShell, Windows SDK, and Inno Setup paths so
+        # we can spot drift between runner images and the locations in
+        # script/bundle-windows.ps1.
+        shell: pwsh
+        run: |
+          Write-Host "--- VS DevShell candidates ---"
+          $vsRoot = 'C:\Program Files\Microsoft Visual Studio\2022'
+          if (Test-Path $vsRoot) {
+              Get-ChildItem $vsRoot | ForEach-Object {
+                  $p = Join-Path $_ 'Common7\Tools\Launch-VsDevShell.ps1'
+                  Write-Host ("  {0} exists={1}" -f $p, [bool](Test-Path $p))
+              }
+          } else {
+              Write-Host "  $vsRoot missing"
+          }
+          Write-Host "--- Windows SDK makeAppx.exe candidates ---"
+          $sdkRoot = 'C:\Program Files (x86)\Windows Kits\10\bin'
+          if (Test-Path $sdkRoot) {
+              Get-ChildItem $sdkRoot | ForEach-Object {
+                  $p = Join-Path $_ 'x64\makeAppx.exe'
+                  Write-Host ("  {0} exists={1}" -f $p, [bool](Test-Path $p))
+              }
+          } else {
+              Write-Host "  $sdkRoot missing"
+          }
+          Write-Host "--- Inno Setup ISCC.exe candidates ---"
+          $iscc = Get-Command iscc -ErrorAction SilentlyContinue
+          if ($iscc) { Write-Host "  in PATH: $($iscc.Source)" } else { Write-Host "  not in PATH" }
+          foreach ($c in @('C:\Program Files (x86)\Inno Setup 6\ISCC.exe', 'C:\Program Files\Inno Setup 6\ISCC.exe')) {
+              if (Test-Path $c) { Write-Host "  $c" }
+          }
+
       - name: Build bundle
         # Produces target/Zed-x86_64.exe (Inno Setup installer) and
         # target/zed-remote-server-windows-x86_64.zip.
