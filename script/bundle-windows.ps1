@@ -73,11 +73,18 @@ function CheckEnvironmentVariables {
     }
 
     $requiredVars = @(
-        'ZED_WORKSPACE', 'RELEASE_VERSION', 'ZED_RELEASE_CHANNEL',
-        'AZURE_TENANT_ID', 'AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET',
-        'ACCOUNT_NAME', 'CERT_PROFILE_NAME', 'ENDPOINT',
-        'FILE_DIGEST', 'TIMESTAMP_DIGEST', 'TIMESTAMP_SERVER'
+        'ZED_WORKSPACE', 'RELEASE_VERSION', 'ZED_RELEASE_CHANNEL'
     )
+
+    # Azure Trusted Signing credentials are only required when actually
+    # signing. SKIP_SIGNING (used by unofficial builds) bypasses them.
+    if (-not $env:SKIP_SIGNING) {
+        $requiredVars += @(
+            'AZURE_TENANT_ID', 'AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET',
+            'ACCOUNT_NAME', 'CERT_PROFILE_NAME', 'ENDPOINT',
+            'FILE_DIGEST', 'TIMESTAMP_DIGEST', 'TIMESTAMP_SERVER'
+        )
+    }
 
     foreach ($var in $requiredVars) {
         if (-not (Test-Path "env:$var")) {
@@ -134,7 +141,7 @@ function BuildRemoteServer {
     # Create zipped remote server binary
     $remoteServerSrc = (Resolve-Path ".\$CargoOutDir\remote_server.exe").Path
 
-    if ($env:CI) {
+    if ($env:CI -and -not $env:SKIP_SIGNING) {
         Write-Output "Code signing remote_server.exe"
         & "$innoDir\sign.ps1" $remoteServerSrc
     }
@@ -210,7 +217,7 @@ function MakeAppx {
     }
 
 function SignZedAndItsFriends {
-    if (-not $env:CI) {
+    if (-not $env:CI -or $env:SKIP_SIGNING) {
         return
     }
 
@@ -357,10 +364,10 @@ function BuildInstaller {
     }
 
     $innoArgs = @($issFilePath) + $defs
-    if($env:CI) {
-        $signTool = "powershell.exe -ExecutionPolicy Bypass -File $innoDir\sign.ps1 `$f"
-        $innoArgs += "/sDefaultsign=`"$signTool`""
-    }
+        if($env:CI -and -not $env:SKIP_SIGNING) {
+            $signTool = "powershell.exe -ExecutionPolicy Bypass -File $innoDir\sign.ps1 `$f"
+            $innoArgs += "/sDefaultsign=`"$signTool`""
+        }
 
     # Execute Inno Setup
     Write-Host "🚀 Running Inno Setup: $innoSetupPath $innoArgs"
@@ -395,7 +402,7 @@ DownloadConpty
 CollectFiles
 BuildInstaller
 
-if($env:CI) {
+if($env:CI -and -not $env:SKIP_SIGNING) {
     UploadToSentry
 }
 

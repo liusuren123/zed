@@ -125,6 +125,9 @@ jobs:
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
       CARGO_HOME: C:\cargo
+      # This fork does not have Azure Trusted Signing credentials, so skip
+      # the signing steps in script/bundle-windows.ps1.
+      SKIP_SIGNING: "1"
     steps:
       - uses: actions/checkout@v4
         with:
