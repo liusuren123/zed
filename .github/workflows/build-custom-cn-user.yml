@@ -9,6 +9,12 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
+  # GitHub-hosted ubuntu-latest has glibc 2.39, but the musl libc bundled
+  # with rust 1.95 lacks __isoc23_* symbols that aws-lc-sys (pulled in by
+  # remote_server) references. Build remote_server against the host glibc
+  # instead of musl. The official Zed nightly uses Ubuntu 20.04 where this
+  # difference doesn't matter.
+  REMOTE_SERVER_TARGET: x86_64-unknown-linux-gnu
 
 jobs:
   build-linux:
