@@ -41,6 +41,7 @@ jobs:
             llvm-dev \
             libclang-dev \
             clang \
+            lld \
             libxcursor-dev \
             libxrandr-dev \
             libxinerama-dev \
@@ -57,7 +58,9 @@ jobs:
             libjavascriptcoregtk-4.1-dev \
             libwebkit2gtk-4.1-dev \
             libpulse-dev \
-            libzstd-dev
+            libzstd-dev \
+            gettext-base \
+            file
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -71,7 +74,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       - name: Free disk space
         run: |
@@ -80,21 +85,26 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache/Python /usr/share/swift
           df -h / | tail -1
 
-      - name: Build Release
-        run: cargo build --release --package zed
-        timeout-minutes: 120
+      - name: Install cargo-about
+        # Required by script/generate-licenses which is invoked by bundle-linux.
+        run: cargo install cargo-about --version 0.8.2 --locked
 
-      - name: Package binary
-        run: |
-          strip target/release/zed
-          cp target/release/zed zed
-          tar czf zed-linux-x64.tar.gz zed
-          ls -lh zed-linux-x64.tar.gz
+      - name: Build bundle
+        # Produces target/release/zed-linux-x86_64.tar.gz and
+        # target/zed-remote-server-linux-x86_64.gz.
+        run: script/bundle-linux
+        timeout-minutes: 180
 
       - uses: actions/upload-artifact@v4
         with:
-          name: zed-linux-x64-${{ github.sha }}
-          path: zed-linux-x64.tar.gz
+          name: zed-linux-x86_64-${{ github.sha }}
+          path: target/release/zed-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zed-remote-server-linux-x86_64-${{ github.sha }}
+          path: target/zed-remote-server-linux-x86_64.gz
           if-no-files-found: error
 
       - uses: ncipollo/release-action@v1
@@ -102,7 +112,9 @@ jobs:
         with:
           allowUpdates: true
           artifactErrorsFailBuild: false
-          artifacts: "zed-linux-x64.tar.gz"
+          artifacts: |
+            target/release/zed-linux-x86_64.tar.gz
+            target/zed-remote-server-linux-x86_64.gz
           omitBody: true
           omitNameDuringUpdate: true
           prerelease: true
@@ -128,7 +140,6 @@ jobs:
           ref: custom-for-cn-user
 
       - name: Enable Windows long paths
-        # Allow git to handle paths longer than 260 characters.
         run: git config --global core.longpaths true
 
       - name: Setup Rust
@@ -143,25 +154,33 @@ jobs:
             C:\cargo\registry
             C:\cargo\git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
-      - name: Build Release
-        run: cargo build --release --package zed
+      - name: Install cargo-about
+        # Required by script/generate-licenses which is invoked by
+        # bundle-windows.ps1.
+        shell: pwsh
+        run: cargo install cargo-about --version 0.8.2 --locked
+
+      - name: Build bundle
+        # Produces target/Zed-x86_64.exe (Inno Setup installer) and
+        # target/zed-remote-server-windows-x86_64.zip.
+        shell: pwsh
+        run: script/bundle-windows.ps1 -Architecture x86_64
         timeout-minutes: 180
-
-      - name: Package binary
-        run: |
-          cd target/release
-          cp zed.exe ${{ github.workspace }}\zed.exe
-          cd ${{ github.workspace }}
-          7z a -tzip zed-windows-x64.zip zed.exe
-          del zed.exe
-          dir zed-windows-x64.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: zed-windows-x64-${{ github.sha }}
-          path: zed-windows-x64.zip
+          name: Zed-x86_64-${{ github.sha }}
+          path: target/Zed-x86_64.exe
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zed-remote-server-windows-x86_64-${{ github.sha }}
+          path: target/zed-remote-server-windows-x86_64.zip
           if-no-files-found: error
 
       - uses: ncipollo/release-action@v1
@@ -169,7 +188,9 @@ jobs:
         with:
           allowUpdates: true
           artifactErrorsFailBuild: false
-          artifacts: "zed-windows-x64.zip"
+          artifacts: |
+            target/Zed-x86_64.exe
+            target/zed-remote-server-windows-x86_64.zip
           omitBody: true
           omitNameDuringUpdate: true
           prerelease: true

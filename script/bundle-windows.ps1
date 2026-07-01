@@ -40,7 +40,13 @@ function Get-VSArch {
 }
 
 Push-Location
-& "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\Launch-VsDevShell.ps1" -Arch (Get-VSArch -Arch $Architecture) -HostArch (Get-VSArch -Arch $OSArchitecture)
+# Allow VS install location to be overridden (CI vs local dev).
+$vsInstall = if ($env:VS_INSTALL_PATH) {
+    $env:VS_INSTALL_PATH
+} else {
+    "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+}
+& "$vsInstall\Common7\Tools\Launch-VsDevShell.ps1" -Arch (Get-VSArch -Arch $Architecture) -HostArch (Get-VSArch -Arch $OSArchitecture)
 Pop-Location
 
 $target = "$Architecture-pc-windows-msvc"
@@ -193,11 +199,15 @@ function MakeAppx {
         }
     }
     Copy-Item -Path "$manifestFile" -Destination "$innoDir\make_appx\AppxManifest.xml"
-    # Add makeAppx.exe to Path
-    $sdk = "D:\Windows Kits\10\bin\10.0.26100.0\x64"
-    $env:Path += ';' + $sdk
-    makeAppx.exe pack /d "$innoDir\make_appx" /p "$innoDir\zed_explorer_command_injector.appx" /nv
-}
+        # Add makeAppx.exe to Path. Allow override for non-default install locations.
+        $sdkRoot = if ($env:WINDOWS_KITS_ROOT) {
+            $env:WINDOWS_KITS_ROOT
+        } else {
+            "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64"
+        }
+        $env:Path += ';' + $sdkRoot
+        makeAppx.exe pack /d "$innoDir\make_appx" /p "$innoDir\zed_explorer_command_injector.appx" /nv
+    }
 
 function SignZedAndItsFriends {
     if (-not $env:CI) {
@@ -311,10 +321,17 @@ function BuildInstaller {
         }
     }
 
-    # Windows runner 2022 default has iscc in PATH, https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
-    # Currently, we are using Windows 2022 runner.
-    # Windows runner 2025 doesn't have iscc in PATH for now, https://github.com/actions/runner-images/issues/11228
-    $innoSetupPath = "C:\Users\liusu\AppData\Local\Programs\Inno Setup 6\ISCC.exe"
+    # Windows runner 2022 has iscc in PATH. Allow override for local dev installs.
+        $innoSetupPath = if ($env:INNO_SETUP_PATH) {
+            $env:INNO_SETUP_PATH
+        } elseif (Get-Command "iscc" -ErrorAction SilentlyContinue) {
+            (Get-Command "iscc").Source
+        } elseif (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+        } else {
+            Write-Error "Could not find ISCC.exe. Set INNO_SETUP_PATH or add Inno Setup 6 to PATH."
+            exit 1
+        }
 
     $definitions = @{
         "AppId"          = $appId
