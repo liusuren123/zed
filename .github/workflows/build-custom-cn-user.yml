@@ -86,12 +86,9 @@ jobs:
           df -h / | tail -1
 
       - name: Install cargo-about
-        # Required by script/generate-licenses which is invoked by bundle-linux.
         run: cargo install cargo-about --version 0.8.2 --locked
 
       - name: Build bundle
-        # Produces target/release/zed-linux-x86_64.tar.gz and
-        # target/zed-remote-server-linux-x86_64.gz.
         run: script/bundle-linux
         timeout-minutes: 180
 
@@ -126,13 +123,7 @@ jobs:
     name: Build Windows
     runs-on: windows-latest
     env:
-      # Force cargo to use the git CLI instead of libgit2, which has better
-      # handling of Windows long paths. python-environment-tools (transitively
-      # pulled in by `pet`) produces paths that exceed the default 260-char
-      # MAX_PATH limit on Windows.
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-      # Move CARGO_HOME from C:\Users\<runner>\.cargo to C:\cargo so paths
-      # like C:\cargo\git\checkouts\python-environment-tools-... stay shorter.
       CARGO_HOME: C:\cargo
     steps:
       - uses: actions/checkout@v4
@@ -159,47 +150,29 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Install cargo-about
-        # Required by script/generate-licenses which is invoked by
-        # bundle-windows.ps1.
         shell: pwsh
         run: cargo install cargo-about --version 0.8.2 --locked
 
-      - name: Locate build tools
-        # Debug: confirm VS DevShell, Windows SDK, and Inno Setup paths so
-        # we can spot drift between runner images and the locations in
-        # script/bundle-windows.ps1.
+      - name: Detect VS install location
+        # Use vswhere to discover the Visual Studio install path on whichever
+        # runner image is current (Windows 2022 + VS 2022, or Windows 2025 +
+        # VS 2026). Export the result so the bundle script picks it up.
         shell: pwsh
         run: |
-          Write-Host "--- VS DevShell candidates ---"
-          $vsRoot = 'C:\Program Files\Microsoft Visual Studio\2022'
-          if (Test-Path $vsRoot) {
-              Get-ChildItem $vsRoot | ForEach-Object {
-                  $p = Join-Path $_ 'Common7\Tools\Launch-VsDevShell.ps1'
-                  Write-Host ("  {0} exists={1}" -f $p, [bool](Test-Path $p))
-              }
-          } else {
-              Write-Host "  $vsRoot missing"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) {
+              Write-Host "vswhere missing at $vswhere"
+              exit 1
           }
-          Write-Host "--- Windows SDK makeAppx.exe candidates ---"
-          $sdkRoot = 'C:\Program Files (x86)\Windows Kits\10\bin'
-          if (Test-Path $sdkRoot) {
-              Get-ChildItem $sdkRoot | ForEach-Object {
-                  $p = Join-Path $_ 'x64\makeAppx.exe'
-                  Write-Host ("  {0} exists={1}" -f $p, [bool](Test-Path $p))
-              }
-          } else {
-              Write-Host "  $sdkRoot missing"
+          $installPath = & $vswhere -latest -property installationPath
+          if (-not $installPath) {
+              Write-Host "vswhere returned no installationPath"
+              exit 1
           }
-          Write-Host "--- Inno Setup ISCC.exe candidates ---"
-          $iscc = Get-Command iscc -ErrorAction SilentlyContinue
-          if ($iscc) { Write-Host "  in PATH: $($iscc.Source)" } else { Write-Host "  not in PATH" }
-          foreach ($c in @('C:\Program Files (x86)\Inno Setup 6\ISCC.exe', 'C:\Program Files\Inno Setup 6\ISCC.exe')) {
-              if (Test-Path $c) { Write-Host "  $c" }
-          }
+          Write-Host "Detected VS install: $installPath"
+          "VS_INSTALL_PATH=$installPath" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build bundle
-        # Produces target/Zed-x86_64.exe (Inno Setup installer) and
-        # target/zed-remote-server-windows-x86_64.zip.
         shell: pwsh
         run: script/bundle-windows.ps1 -Architecture x86_64
         timeout-minutes: 180
