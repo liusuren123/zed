@@ -524,6 +524,22 @@ impl From<settings::GitPathStyle> for GitPathStyle {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum InlineBlameLocation {
+    #[default]
+    Inline,
+    StatusBar,
+}
+
+impl From<settings::InlineBlameLocation> for InlineBlameLocation {
+    fn from(location: settings::InlineBlameLocation) -> Self {
+        match location {
+            settings::InlineBlameLocation::Inline => InlineBlameLocation::Inline,
+            settings::InlineBlameLocation::StatusBar => InlineBlameLocation::StatusBar,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct InlineBlameSettings {
     /// Whether or not to show git blame data inline in
@@ -549,6 +565,10 @@ pub struct InlineBlameSettings {
     ///
     /// Default: false
     pub show_commit_summary: bool,
+    /// Where to render the blame information when enabled.
+    ///
+    /// Default: inline
+    pub location: InlineBlameLocation,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -667,6 +687,7 @@ impl Settings for ProjectSettings {
                     padding: inline.padding.unwrap(),
                     min_column: inline.min_column.unwrap(),
                     show_commit_summary: inline.show_commit_summary.unwrap(),
+                    location: inline.location.unwrap().into(),
                 }
             },
             blame: {

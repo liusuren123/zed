@@ -613,6 +613,32 @@ pub struct InlineBlameSettings {
     ///
     /// Default: false
     pub show_commit_summary: Option<bool>,
+    /// Where to render the blame information when enabled.
+    ///
+    /// Default: inline
+    pub location: Option<InlineBlameLocation>,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Default,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    MergeFrom,
+    strum::VariantArray,
+    strum::VariantNames,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum InlineBlameLocation {
+    /// Show git blame inline at the current line.
+    #[default]
+    Inline,
+    /// Show git blame in the status bar at the bottom of the window.
+    StatusBar,
 }
 
 #[with_fallible_options]
