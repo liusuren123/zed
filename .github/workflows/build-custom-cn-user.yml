@@ -4,7 +4,16 @@ on:
   push:
     branches:
       - custom-for-cn-user
+  # Rebuild nightly at 00:00 UTC so the release always reflects the latest
+  # HEAD on custom-for-cn-user, even when nobody pushes for a while.
+  schedule:
+    - cron: "0 0 * * *"
   workflow_dispatch:
+
+concurrency:
+  # Don't let a slow daily build overlap with a push-triggered build.
+  group: build-custom-for-cn-user
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
