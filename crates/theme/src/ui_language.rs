@@ -1492,7 +1492,7 @@ fn zh_cn_translations() -> &'static HashMap<&'static str, &'static str> {
         // ════════════════════════════════════════════════════════════════════
         // 十、智能体面板（Agent UI）
         // ════════════════════════════════════════════════════════════════════
-        map.insert("Message the Zed Agent — @ to include context", "向 Zed 智能体发送消息 — 使用 @ 引入上下文");
+        map.insert("Message the Zed Agent, @ to include context, / for commands", "向 Zed 智能体发送消息 — 使用 @ 引入上下文，/ 查看命令");
         map.insert("Message {name} — @ to include context", "向 {name} 发送消息 — 使用 @ 引入上下文");
         map.insert("Message {name} — @ to include context, / for commands", "向 {name} 发送消息 — 使用 @ 引入上下文，/ 查看命令");
         map.insert("Search all threads...", "搜索所有线程\u{2026}");

@@ -3029,7 +3029,11 @@ fn native_available_skills(
 
 fn placeholder_text(agent_name: &str, has_commands: bool, cx: &App) -> String {
     if agent_name == agent::ZED_AGENT_ID.as_ref() {
-        translate("Message the Zed Agent — @ to include context", cx).to_string()
+        translate(
+            "Message the Zed Agent, @ to include context, / for commands",
+            cx,
+        )
+        .to_string()
     } else if has_commands {
         translate("Message {name} — @ to include context, / for commands", cx)
             .replace("{name}", agent_name)
