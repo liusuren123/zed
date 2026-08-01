@@ -1206,6 +1206,13 @@
     },
   },
   {
+    "context": "CommitEditor > Editor && VimControl && !menu",
+    "bindings": {
+      "tab": "git_panel::FocusChanges",
+      "shift-tab": "git_panel::FocusChanges",
+    },
+  },
+  {
     "context": "SkillCreator",
     "bindings": {
       "tab": "skill_creator::FocusNextField",
