@@ -18,8 +18,8 @@ use markdown::{
     CodeBlockRenderer, CopyButtonVisibility, Markdown, MarkdownElement, MarkdownFont,
     MarkdownOptions, MarkdownStyle,
 };
-use project::Project;
 use project::search::SearchQuery;
+use project::{Project, ProjectPath};
 use settings::{SeedQuerySetting, Settings};
 use theme::{SystemAppearance, Theme, ThemeRegistry};
 use theme_settings::ThemeSettings;
@@ -451,15 +451,20 @@ impl MarkdownPreviewView {
 
     /// The absolute path of the file that is currently being previewed.
     fn get_folder_for_active_editor(editor: &Editor, cx: &App) -> Option<PathBuf> {
-        if let Some(file) = editor.file_at(MultiBufferOffset(0), cx) {
-            if let Some(file) = file.as_local() {
-                file.abs_path(cx).parent().map(|p| p.to_path_buf())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        let file = editor.file_at(MultiBufferOffset(0), cx)?;
+        let absolute_path = editor
+            .project()
+            .and_then(|project| {
+                project.read(cx).absolute_path(
+                    &ProjectPath {
+                        worktree_id: file.worktree_id(cx),
+                        path: file.path().clone(),
+                    },
+                    cx,
+                )
+            })
+            .or_else(|| file.as_local().map(|file| file.abs_path(cx)))?;
+        absolute_path.parent().map(Path::to_path_buf)
     }
 
     fn line_scroll_amount(&self, cx: &App) -> Pixels {
