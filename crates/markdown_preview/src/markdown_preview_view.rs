@@ -30,11 +30,12 @@ use workspace::item::{Item, ItemBufferKind, ItemHandle, SaveOptions};
 use workspace::searchable::{
     Direction, SearchEvent, SearchOptions, SearchToken, SearchableItem, SearchableItemHandle,
 };
-use workspace::{OpenOptions, OpenVisible, Pane, Workspace};
+use workspace::{OpenOptions, OpenVisible, Pane, SaveIntent, Workspace};
 
 use crate::markdown_preview_settings::MarkdownPreviewSettings;
 use crate::{
-    OpenFollowingPreview, OpenPreview, OpenPreviewToTheSide, ScrollDown, ScrollDownByItem,
+    CloseAndReturnToEditor, OpenFollowingPreview, OpenPreview, OpenPreviewToTheSide, ScrollDown,
+    ScrollDownByItem,
 };
 use crate::{ScrollPageDown, ScrollPageUp, ScrollToBottom, ScrollToTop, ScrollUp, ScrollUpByItem};
 
@@ -589,6 +590,40 @@ impl MarkdownPreviewView {
         cx.notify();
     }
 
+    fn close_and_return_to_editor(
+        &mut self,
+        _: &CloseAndReturnToEditor,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(editor) = self
+            .active_editor
+            .as_ref()
+            .map(|state| state.editor.clone())
+        else {
+            return;
+        };
+        let Some(workspace) = self.workspace.upgrade() else {
+            return;
+        };
+        let preview_id = cx.entity_id();
+
+        window.defer(cx, move |window, cx| {
+            workspace.update(cx, |workspace, cx| {
+                if !workspace.activate_item(&editor, true, true, window, cx) {
+                    workspace.add_item_to_active_pane(Box::new(editor), None, true, window, cx);
+                }
+
+                if let Some(pane) = workspace.pane_for_item_id(preview_id) {
+                    pane.update(cx, |pane, cx| {
+                        pane.close_item_by_id(preview_id, SaveIntent::Skip, window, cx)
+                    })
+                    .detach_and_log_err(cx);
+                }
+            });
+        });
+    }
+
     /// Returns the theme chosen in `markdown_preview_theme`, or `None` if the
     /// user hasn't set one or it can't be resolved.
     fn resolve_preview_theme(&self, cx: &App) -> Option<Arc<Theme>> {
@@ -1035,6 +1070,7 @@ impl Render for MarkdownPreviewView {
             .on_action(cx.listener(MarkdownPreviewView::scroll_down_by_item))
             .on_action(cx.listener(MarkdownPreviewView::scroll_to_top))
             .on_action(cx.listener(MarkdownPreviewView::scroll_to_bottom))
+            .on_action(cx.listener(MarkdownPreviewView::close_and_return_to_editor))
             .w_full()
             .flex_1()
             .min_h_0()
