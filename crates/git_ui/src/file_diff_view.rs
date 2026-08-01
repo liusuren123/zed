@@ -113,6 +113,24 @@ impl FileDiffView {
 
         let (buffer_changes_tx, mut buffer_changes_rx) = watch::channel(());
 
+        // The buffers' languages may load after the diff was built, e.g. when
+        // opening the view on startup via `zed --diff`. Propagate them to the
+        // base text buffer, which the split view's left-hand side displays.
+        cx.subscribe(&new_buffer, {
+            let base_text_buffer = diff.read(cx).base_text_buffer().downgrade();
+            move |_, buffer, event, cx| {
+                if let language::BufferEvent::LanguageChanged(_) = event {
+                    let language = buffer.read(cx).language().cloned();
+                    base_text_buffer
+                        .update(cx, |base_text_buffer, cx| {
+                            base_text_buffer.set_language_async(language, cx);
+                        })
+                        .ok();
+                }
+            }
+        })
+        .detach();
+
         for buffer in [&old_buffer, &new_buffer] {
             cx.subscribe(buffer, move |this, _, event, _| match event {
                 language::BufferEvent::Edited { .. }
