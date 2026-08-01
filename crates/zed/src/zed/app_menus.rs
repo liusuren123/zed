@@ -3,11 +3,9 @@ use gpui::{App, Menu, MenuItem, OsAction};
 use release_channel::ReleaseChannel;
 use terminal_view::terminal_panel;
 use theme::translate;
-use zed_actions::{debug_panel, dev};
+use zed_actions::{Quit, assistant, debug_panel, dev, git_panel, project_panel};
 
 pub fn app_menus(cx: &mut App) -> Vec<Menu> {
-    use zed_actions::Quit;
-
     let mut view_items = vec![
         MenuItem::action(
             translate("Zoom In", cx),
@@ -50,14 +48,13 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
             ],
         }),
         MenuItem::separator(),
-        MenuItem::action(
-            translate("Project Panel", cx),
-            zed_actions::project_panel::ToggleFocus,
-        ),
+        MenuItem::action(translate("Project Panel", cx), project_panel::ToggleFocus),
         MenuItem::action(translate("Outline Panel", cx), outline_panel::ToggleFocus),
         MenuItem::action(translate("Collab Panel", cx), collab_panel::ToggleFocus),
-        MenuItem::action(translate("Terminal Panel", cx), terminal_panel::ToggleFocus),
+        MenuItem::action(translate("Terminal Panel", cx), terminal_panel::Toggle),
         MenuItem::action(translate("Debugger Panel", cx), debug_panel::ToggleFocus),
+        MenuItem::action(translate("Agent Panel", cx), assistant::ToggleFocus),
+        MenuItem::action(translate("Git Panel", cx), git_panel::ToggleFocus),
         MenuItem::separator(),
         MenuItem::action(translate("Diagnostics", cx), diagnostics::Deploy),
         MenuItem::separator(),

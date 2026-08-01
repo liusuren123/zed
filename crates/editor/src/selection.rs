@@ -1704,12 +1704,25 @@ impl Editor {
         let end_column = cmp::max(tail.column(), goal_column);
         let reversed = start_column < tail.column();
 
+        let mut last_buffer_row = None;
         let selection_ranges = (start_row.0..=end_row.0)
             .map(DisplayRow)
             .filter_map(|row| {
+                if display_map.is_block_line(row) {
+                    return None;
+                }
+
+                // When iterating over display rows, multiple display rows can
+                // map to the same buffer row (e.g. wrapped lines). Skip
+                // duplicates so we only place one cursor per buffer row.
+                let buffer_row = row.as_display_point().to_point(display_map).row;
+                if last_buffer_row == Some(buffer_row) {
+                    return None;
+                }
+                last_buffer_row = Some(buffer_row);
+
                 if (matches!(columnar_state, ColumnarSelectionState::FromMouse { .. })
                     || start_column <= display_map.line_len(row))
-                    && !display_map.is_block_line(row)
                 {
                     let start = display_map
                         .clip_point(DisplayPoint::new(row, start_column), Bias::Left)

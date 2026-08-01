@@ -366,6 +366,19 @@ pub mod project_panel {
         ]
     );
 }
+pub mod git_panel {
+    use gpui::actions;
+
+    actions!(
+        git_panel,
+        [
+            /// Toggles the git panel.
+            Toggle,
+            /// Toggles focus on the git panel.
+            ToggleFocus
+        ]
+    );
+}
 pub mod feedback {
     use gpui::actions;
 
