@@ -551,6 +551,11 @@ pub fn into_mistral(
                     },
                 })
                 .collect(),
+            reasoning_effort: if model.supports_thinking() && request.thinking_allowed {
+                Some(mistral::ReasoningEffort::High)
+            } else {
+                None
+            },
         },
         request.thread_id,
     )

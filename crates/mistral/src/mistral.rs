@@ -100,6 +100,9 @@ impl Model {
             "magistral-medium-latest" => Ok(Self::MagistralMediumLatest),
             "open-mistral-nemo" => Ok(Self::OpenMistralNemo),
             "devstral-medium-latest" => Ok(Self::DevstralMediumLatest),
+            "ministral-3b-latest" => Ok(Self::Ministral3bLatest),
+            "ministral-8b-latest" => Ok(Self::Ministral8bLatest),
+            "ministral-14b-latest" => Ok(Self::Ministral14bLatest),
             invalid_id => anyhow::bail!("invalid model id '{invalid_id}'"),
         }
     }
@@ -197,7 +200,9 @@ impl Model {
 
     pub fn supports_thinking(&self) -> bool {
         match self {
-            Self::MagistralMediumLatest => true,
+            Self::MagistralMediumLatest | Self::MistralSmallLatest | Self::MistralMediumLatest => {
+                true
+            }
             Self::Custom {
                 supports_thinking, ..
             } => supports_thinking.unwrap_or(false),
@@ -225,6 +230,16 @@ pub struct Request {
     pub parallel_tool_calls: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<ToolDefinition>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<ReasoningEffort>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum ReasoningEffort {
+    Low,
+    Medium,
+    High,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
