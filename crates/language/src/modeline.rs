@@ -209,9 +209,9 @@ static VIM_MODELINE_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     [
         // Second form: [text{white}]{vi:vim:Vim:}[white]se[t] {options}:[text]
         // Allow escaped colons in options: match non-colon chars or backslash followed by any char
-        r"(?:^|\s)(vi|vim|Vim):(?:\s*)se(?:t)?\s+((?:[^\\:]|\\.)*):",
-        // First form: [text{white}]{vi:vim:}[white]{options}
-        r"(?:^|\s+)(vi|vim):(?:\s*(.+))",
+        r"(?:(?:^|\s)(?:vi|vim|Vim)|\sex):\s*se(?:t)?\s+((?:[^\\:]|\\.)*):",
+        // First form: [text{white}]{vi:|vim:|ex:}[white]{options}
+        r"(?:(?:^|\s)(?:vi|vim)|\sex):\s*(.+)",
     ]
     .iter()
     .map(|pattern| Regex::new(pattern).expect("valid regex"))
@@ -225,7 +225,7 @@ static VIM_MODELINE_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
 fn parse_vim_modeline(line: &str, settings: &mut ModelineSettings) {
     for re in VIM_MODELINE_PATTERNS.iter() {
         if let Some(captures) = re.captures(line) {
-            if let Some(options) = captures.get(2) {
+            if let Some(options) = captures.get(1) {
                 parse_vim_settings(options.as_str().trim(), settings);
                 break;
             }
