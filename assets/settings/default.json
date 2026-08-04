@@ -1011,8 +1011,8 @@
     // Maximum length of the commit message title before a warning is shown.
     // Set to 0 to disable.
     //
-    // Default: 72
-    "commit_title_max_length": 72,
+    // Default: 0
+    "commit_title_max_length": 0,
   },
   "message_editor": {
     // Whether to automatically replace emoji shortcodes with emoji characters.
@@ -2162,7 +2162,7 @@
       },
     },
     "CSharp": {
-      "language_servers": ["roslyn", "!omnisharp", "..."],
+      "language_servers": ["roslyn", "!csharp-ls", "!omnisharp", "..."],
     },
     "CSS": {
       "prettier": {

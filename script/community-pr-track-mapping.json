@@ -112,6 +112,7 @@
       "name": "UI & Settings",
       "labels": [
         "area:keymap editor",
+        "area:pickers",
         "area:popovers",
         "area:preview/images",
         "area:settings",

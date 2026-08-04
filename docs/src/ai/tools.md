@@ -11,6 +11,8 @@ You can configure permissions for tool actions, including situations where they 
 
 To add custom tools beyond these built-in ones, see [MCP servers](./mcp.md).
 
+The terminal tool can also run with additional OS-level restrictions when [Zed Agent sandboxing](./sandboxing.md) is enabled.
+
 ## Read & Search Tools
 
 ### `diagnostics`
