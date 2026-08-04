@@ -1378,9 +1378,9 @@ fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &mut 
                     task.await?;
                 }
                 let client = app_state.client.clone();
-                // we continue even if authentication fails as join_channel/ open channel notes will
+                // we continue even if connection fails as join_channel/ open channel notes will
                 // show a visible error message.
-                authenticate(client, cx).await.log_err();
+                client.connect(true, cx).await.into_response().log_err();
 
                 if let Some(channel_id) = request.join_channel {
                     cx.update(|cx| {
