@@ -384,7 +384,10 @@ impl LineWrapper {
         // is included so it stays attached to the preceding word when wrapping.
         matches!(c, '-' | '_' | '.' | '\'' | '’' | '‘' | '$' | '%' | '@' | '#' | '^' | '~' | ',' | '=' | ':' | ';') ||
         // `⋯` character is special used in Zed, to keep this at the end of the line.
-        matches!(c, '⋯')
+        matches!(c, '⋯') ||
+
+        // Non-breaking glue characters
+        matches!(c, '\u{202F}' | '\u{00A0}' | '\u{2011}')
     }
 
     #[inline(always)]
