@@ -107,6 +107,13 @@ pub enum Model {
         alias = "claude-sonnet-4-6-thinking-latest"
     )]
     ClaudeSonnet4_6,
+    #[serde(
+        rename = "claude-fable-5",
+        alias = "claude-fable-5-latest",
+        alias = "claude-fable-5-thinking",
+        alias = "claude-fable-5-thinking-latest"
+    )]
+    ClaudeFable5,
 
     // Meta Llama 4 models
     #[serde(rename = "llama-4-scout-17b")]
@@ -219,7 +226,9 @@ impl Model {
     }
 
     pub fn from_id(id: &str) -> anyhow::Result<Self> {
-        if id.starts_with("claude-opus-4-8") {
+        if id.starts_with("claude-fable-5") {
+            Ok(Self::ClaudeFable5)
+        } else if id.starts_with("claude-opus-4-8") {
             Ok(Self::ClaudeOpus4_8)
         } else if id.starts_with("claude-opus-4-7") {
             Ok(Self::ClaudeOpus4_7)
@@ -253,6 +262,7 @@ impl Model {
             Self::ClaudeOpus4_7 => "claude-opus-4-7",
             Self::ClaudeOpus4_8 => "claude-opus-4-8",
             Self::ClaudeSonnet4_6 => "claude-sonnet-4-6",
+            Self::ClaudeFable5 => "claude-fable-5",
             Self::Llama4Scout17B => "llama-4-scout-17b",
             Self::Llama4Maverick17B => "llama-4-maverick-17b",
             Self::Gemma3_4B => "gemma-3-4b",
@@ -304,6 +314,7 @@ impl Model {
             Self::ClaudeOpus4_7 => "anthropic.claude-opus-4-7",
             Self::ClaudeOpus4_8 => "anthropic.claude-opus-4-8",
             Self::ClaudeSonnet4_6 => "anthropic.claude-sonnet-4-6",
+            Self::ClaudeFable5 => "anthropic.claude-fable-5",
             Self::Llama4Scout17B => "meta.llama4-scout-17b-instruct-v1:0",
             Self::Llama4Maverick17B => "meta.llama4-maverick-17b-instruct-v1:0",
             Self::Gemma3_4B => "google.gemma-3-4b-it",
@@ -355,6 +366,7 @@ impl Model {
             Self::ClaudeOpus4_7 => "Claude Opus 4.7",
             Self::ClaudeOpus4_8 => "Claude Opus 4.8",
             Self::ClaudeSonnet4_6 => "Claude Sonnet 4.6",
+            Self::ClaudeFable5 => "Claude Fable 5",
             Self::Llama4Scout17B => "Llama 4 Scout 17B",
             Self::Llama4Maverick17B => "Llama 4 Maverick 17B",
             Self::Gemma3_4B => "Gemma 3 4B",
@@ -406,7 +418,8 @@ impl Model {
             | Self::ClaudeOpus4_6
             | Self::ClaudeOpus4_7
             | Self::ClaudeOpus4_8
-            | Self::ClaudeSonnet4_6 => 1_000_000,
+            | Self::ClaudeSonnet4_6
+            | Self::ClaudeFable5 => 1_000_000,
             Self::ClaudeOpus4_1 => 200_000,
             Self::Llama4Scout17B | Self::Llama4Maverick17B => 128_000,
             Self::Gemma3_4B | Self::Gemma3_12B | Self::Gemma3_27B => 128_000,
@@ -440,7 +453,10 @@ impl Model {
             | Self::ClaudeOpus4_5
             | Self::ClaudeSonnet4_6 => 64_000,
             Self::ClaudeOpus4_1 => 32_000,
-            Self::ClaudeOpus4_6 | Self::ClaudeOpus4_7 | Self::ClaudeOpus4_8 => 128_000,
+            Self::ClaudeOpus4_6
+            | Self::ClaudeOpus4_7
+            | Self::ClaudeOpus4_8
+            | Self::ClaudeFable5 => 128_000,
             Self::Llama4Scout17B
             | Self::Llama4Maverick17B
             | Self::Gemma3_4B
@@ -480,7 +496,8 @@ impl Model {
             | Self::ClaudeOpus4_6
             | Self::ClaudeOpus4_7
             | Self::ClaudeOpus4_8
-            | Self::ClaudeSonnet4_6 => 1.0,
+            | Self::ClaudeSonnet4_6
+            | Self::ClaudeFable5 => 1.0,
             Self::Custom {
                 default_temperature,
                 ..
@@ -499,7 +516,8 @@ impl Model {
             | Self::ClaudeOpus4_6
             | Self::ClaudeOpus4_7
             | Self::ClaudeOpus4_8
-            | Self::ClaudeSonnet4_6 => true,
+            | Self::ClaudeSonnet4_6
+            | Self::ClaudeFable5 => true,
             Self::NovaLite | Self::NovaPro | Self::NovaPremier | Self::Nova2Lite => true,
             Self::MistralLarge3 | Self::PixtralLarge | Self::MagistralSmall => true,
             Self::Devstral2_123B | Self::Ministral14B => true,
@@ -531,7 +549,8 @@ impl Model {
             | Self::ClaudeOpus4_6
             | Self::ClaudeOpus4_7
             | Self::ClaudeOpus4_8
-            | Self::ClaudeSonnet4_6 => true,
+            | Self::ClaudeSonnet4_6
+            | Self::ClaudeFable5 => true,
             Self::NovaLite | Self::NovaPro => true,
             Self::PixtralLarge => true,
             Self::Qwen3VL235B => true,
@@ -550,7 +569,8 @@ impl Model {
             | Self::ClaudeOpus4_6
             | Self::ClaudeOpus4_7
             | Self::ClaudeOpus4_8
-            | Self::ClaudeSonnet4_6 => true,
+            | Self::ClaudeSonnet4_6
+            | Self::ClaudeFable5 => true,
             Self::Custom {
                 cache_configuration,
                 ..
@@ -577,12 +597,16 @@ impl Model {
     pub fn supports_adaptive_thinking(&self) -> bool {
         matches!(
             self,
-            Self::ClaudeOpus4_6 | Self::ClaudeOpus4_7 | Self::ClaudeOpus4_8 | Self::ClaudeSonnet4_6
+            Self::ClaudeOpus4_6
+                | Self::ClaudeOpus4_7
+                | Self::ClaudeOpus4_8
+                | Self::ClaudeSonnet4_6
+                | Self::ClaudeFable5
         )
     }
 
     pub fn supports_xhigh_adaptive_thinking(&self) -> bool {
-        matches!(self, Self::ClaudeOpus4_8)
+        matches!(self, Self::ClaudeOpus4_8 | Self::ClaudeFable5)
     }
 
     pub fn thinking_mode(&self) -> BedrockModelMode {
@@ -731,7 +755,8 @@ impl Model {
                 | Self::ClaudeOpus4_6
                 | Self::ClaudeOpus4_7
                 | Self::ClaudeOpus4_8
-                | Self::ClaudeSonnet4_6,
+                | Self::ClaudeSonnet4_6
+                | Self::ClaudeFable5,
                 "au",
             ) => Ok(format!("{}.{}", region_group, model_id)),
 
