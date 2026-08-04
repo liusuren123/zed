@@ -138,6 +138,7 @@
         "area:ai/acp",
         "area:ai/agent thread",
         "area:ai/agent thread/sandbox",
+        "area:ai/agent thread/skills",
         "area:ai/anthropic",
         "area:ai/assistant",
         "area:ai/bedrock",
@@ -157,6 +158,7 @@
         "area:ai/opencode",
         "area:ai/openrouter",
         "area:ai/qwen",
+        "area:ai/terminal threads",
         "area:ai/text thread"
       ]
     },
@@ -225,6 +227,7 @@
       "name": "Performance & Catch-all",
       "labels": [
         "area:cli",
+        "area:crashes",
         "area:discoverability",
         "area:installer-updater",
         "area:internationalization",
@@ -239,6 +242,7 @@
         "area:performance",
         "area:performance/memory leak",
         "area:release notes",
+        "area:scripts",
         "area:security & privacy",
         "area:security & privacy/workspace trust",
         "area:serialization",
