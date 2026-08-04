@@ -7962,9 +7962,11 @@ impl<'a> Iterator for MultiBufferChunks<'a> {
                 let diff_transform_end = diff_transform_end.min(self.range.end);
 
                 if diff_transform_end < chunk_end {
-                    let split_idx = diff_transform_end - self.range.start;
+                    let split_idx = chunk
+                        .text
+                        .ceil_char_boundary(diff_transform_end - self.range.start);
                     let (before, after) = chunk.text.split_at(split_idx);
-                    self.range.start = diff_transform_end;
+                    self.range.start += split_idx;
                     let mask = 1u128.unbounded_shl(split_idx as u32).wrapping_sub(1);
                     let chars = chunk.chars & mask;
                     let tabs = chunk.tabs & mask;
