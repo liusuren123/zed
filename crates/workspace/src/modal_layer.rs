@@ -83,6 +83,14 @@ impl ModalLayer {
         }
     }
 
+    // This stub remains so the upstream fix to clear a pending reveal on
+    // a new toggle_modal can be backported in step with the corresponding
+    // additions elsewhere.
+    fn reset_pending_reveal(&mut self) {
+        // No-op in this version: `stashed_modal`/`reveal_stash_when_free`
+        // are not yet present, so there is nothing to reset.
+    }
+
     /// Toggles a modal of type `V`. If a modal of the same type is currently active,
     /// it will be hidden. If a different modal is active, it will be replaced with the new one.
     /// If no modal is active, the new modal will be shown.
@@ -95,6 +103,9 @@ impl ModalLayer {
         V: ModalView,
         B: FnOnce(&mut Window, &mut Context<V>) -> V,
     {
+        // Opening a modal explicitly supersedes any reveal that was waiting for the
+        // layer to become free.
+        self.reset_pending_reveal();
         if let Some(active_modal) = &self.active_modal {
             let should_close = active_modal.modal.view().downcast::<V>().is_ok();
             let did_close = self.hide_modal(window, cx);
