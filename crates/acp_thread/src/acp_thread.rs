@@ -40,7 +40,10 @@ use text::Bias;
 use ui::App;
 use util::markdown::MarkdownEscaped;
 use util::path_list::PathList;
-use util::{ResultExt, get_default_system_shell_preferring_bash, paths::PathStyle};
+use util::{
+    ResultExt, get_default_system_shell_preferring_bash,
+    paths::{PathStyle, is_absolute},
+};
 use uuid::Uuid;
 
 /// Returned when the model stops because it exhausted its output token budget.
@@ -473,9 +476,16 @@ impl ToolCall {
     ) -> Option<ResolvedLocation> {
         let buffer = project
             .update(cx, |project, cx| {
-                project
-                    .project_path_for_absolute_path(&location.path, cx)
-                    .map(|path| project.open_buffer(path, cx))
+                if let Some(path) = project.project_path_for_absolute_path(&location.path, cx) {
+                    Some(project.open_buffer(path, cx))
+                } else if is_absolute(
+                    location.path.to_string_lossy().as_ref(),
+                    project.path_style(cx),
+                ) {
+                    Some(project.open_local_buffer(&location.path, cx))
+                } else {
+                    None
+                }
             })
             .ok()??;
         let buffer = buffer.await.log_err()?;
