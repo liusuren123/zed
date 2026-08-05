@@ -71,13 +71,12 @@ impl FromStr for SelectedModel {
 
     /// Parse string identifiers like `provider_id/model_id` into a `SelectedModel`
     fn from_str(id: &str) -> Result<SelectedModel, Self::Err> {
-        let parts: Vec<&str> = id.split('/').collect();
-        let [provider_id, model_id] = parts.as_slice() else {
-            return Err(format!(
+        let (provider_id, model_id) = id.split_once('/').ok_or_else(|| {
+            format!(
                 "Invalid model identifier format: `{}`. Expected `provider_id/model_id`",
                 id
-            ));
-        };
+            )
+        })?;
 
         if provider_id.is_empty() || model_id.is_empty() {
             return Err(format!("Provider and model ids can't be empty: `{}`", id));
