@@ -306,6 +306,8 @@ actions!(
         ResetActiveDockSize,
         /// Resets all open docks to their default sizes.
         ResetOpenDocksSize,
+        /// Resets all panes in the center group to equal sizes, preserving the split layout.
+        ResetPaneSizes,
         /// Reloads the application
         Reload,
         /// Formats and saves the current file, regardless of the format_on_save setting.
@@ -7466,6 +7468,11 @@ impl Workspace {
                             });
                         }
                     }
+                },
+            ))
+            .on_action(cx.listener(
+                |workspace: &mut Workspace, _: &ResetPaneSizes, _window, cx| {
+                    workspace.reset_pane_sizes(cx);
                 },
             ))
             .on_action(cx.listener(
