@@ -66,7 +66,9 @@ my-extension/
     rust.json
 ```
 
-## WebAssembly
+## Rust and WebAssembly
+
+> Please note that most extensions will work properly without any Rust code present. In particular, only language server, context server and debugger extensions require the presence custom Rust in order to function properly.
 
 Procedural parts of extensions are written in Rust and compiled to WebAssembly. To develop an extension that includes custom code, include a `Cargo.toml` like this:
 
@@ -101,7 +103,11 @@ impl zed::Extension for MyExtension {
 zed::register_extension!(MyExtension);
 ```
 
-> `stdout`/`stderr` is forwarded directly to the Zed process. In order to see `println!`/`dbg!` output from your extension, you can start Zed in your terminal with a `--foreground` flag.
+> Since your extension will be compiled to WebAssembly, some Rust features might not work like you would expect them to. For example, `cfg` - directives will not work and `std::env::var` will also not yield the expected results. Instead, use the [`zed_extension_api::current_platform`](https://docs.rs/zed_extension_api/latest/zed_extension_api/fn.current_platform.html) method to get information about the current environment and familiarize yourself with the [`Worktree` struct and its methods](https://docs.rs/zed_extension_api/latest/zed_extension_api/struct.Worktree.html) for reading environment variables and finding binaries in the users `PATH`.
+
+### Debugging your Rust extension
+
+`stdout`/`stderr` is forwarded directly to the Zed process. In order to see `println!`/`dbg!` output from your extension, you can start Zed in your terminal with a `--foreground` flag.
 
 ## Forking and cloning the repo
 
@@ -156,6 +162,10 @@ Furthermore, please make sure that your extension fulfills the following precond
 - Extensions should provide something that is not yet available in the marketplace as opposed to fixing something that could be resolved within an existing extension. For example, if you find that an existing extension's support for a language server is not functioning properly, first try contributing a fix to the existing extension as opposed to submitting a new extension immediately.
   - If you receive no response or reaction within the upstream repository within a reasonable amount of time, feel free to submit a pull request that aims to fix said issue. Please ensure that you provide your previous efforts within the pull request to the extensions repository for adding your extension. Zed maintainers will then decide on how to proceed on a case by case basis.
 - Extensions that intend to provide a language, debugger or MCP server must not ship the language server as part of the extension. Instead, the extension should either download the language server or check for the availability of the language server in the users environment using the APIs as provided by the [Zed Rust Extension API](https://docs.rs/zed_extension_api/latest/zed_extension_api/).
+- Your extension must only include the resources it requires to function and nothing else.
+  - See the [directory structure of a Zed extension](#directory-structure-of-a-zed-extension) and the [Rust and WebAssembly](#rust-and-webassembly) sections for more information.
+- Extensions must in no way attempt to read nor modify the environment outside of the environment designated to them by Zed. Should they need to read the environment, they should use methods as provided by the [Zed Rust Extension API](https://docs.rs/zed_extension_api/latest/zed_extension_api/) and may fall back to appropriate methods from the Rust standard library. Should they need changes to the environment, they must instead ask the user to perform these for them using an appropriate method within the context (e.g. provide information for doing so using the `ContextServerConfiguration` for context servers).
+  - Please make sure to have read the [Rust and WebAssembly section above](#rust-and-webassembly) for more information and help regarding this topic.
 - Themes and icon themes should not be published as part of extensions that provide other features, e.g. language support. Instead, they should be published as a distinct extension. This also applies to theme and icon themes living in the same repository.
 
 Non-compliance with these rules will be raised during the publishing process by reviewers. If you fail to comply with the laid out guidelines, the publishing of your extension will either be delayed or rejected.
