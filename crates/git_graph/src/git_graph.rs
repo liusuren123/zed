@@ -13,7 +13,7 @@ use git::{
 use git_ui::{
     commit_tooltip::{CommitAvatar, CommitDetails, CommitTooltip},
     commit_view::CommitView,
-    git_status_icon,
+    get_provider_icon, git_status_icon,
 };
 use gpui::{
     Action, Anchor, AnyElement, App, Bounds, ClickEvent, ClipboardItem, DefiniteLength,
@@ -2785,10 +2785,7 @@ impl GitGraph {
                             })
                             .when_some(remote.clone(), |this, remote| {
                                 let provider_name = remote.host.name();
-                                let icon = match provider_name.as_str() {
-                                    "GitHub" => IconName::Github,
-                                    _ => IconName::Link,
-                                };
+                                let icon = get_provider_icon(provider_name.as_str());
                                 let parsed_remote = ParsedGitRemote {
                                     owner: remote.owner.as_ref().into(),
                                     repo: remote.repo.as_ref().into(),
